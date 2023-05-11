@@ -1,7 +1,7 @@
 import triShaderCode from "./shaders/tri.wgsl?raw";
 import { observeResizableCanvas } from "../utils/observeCanvas";
 
-export async function main(canvas) {
+export async function main(canvas: HTMLCanvasElement) {
 	const adapter = await navigator.gpu?.requestAdapter();
 	const device = await adapter?.requestDevice();
 
@@ -11,8 +11,14 @@ export async function main(canvas) {
 	}
 
 	const context = canvas.getContext("webgpu");
+
+	if (!context) {
+		console.error("Could not get webgpu canvas context");
+		return;
+	}
+
 	const format = navigator.gpu.getPreferredCanvasFormat();
-	context.configure({ device, format });
+	context!.configure({ device, format });
 
 	const module = device.createShaderModule({
 		label: "our hardcoded red triangle shaders",
@@ -33,21 +39,34 @@ export async function main(canvas) {
 		}
 	});
 
+	const renderPassDescriptor = {
+		label: "our basic canvas renderPass",
+		colorAttachments: [{
+			// JS example doesn't initialize with `view`,
+			// but current typing must define it
+			view: context.getCurrentTexture().createView(),
+			clearValue: [0.3, 0.3, 0.3, 1],
+			loadOp: "clear",
+			storeOp: "store",
+		}],
+		// using `satisfies` because current typing describes colorAttachments as Iterator,
+		// but I want to index into the array 
+	} satisfies GPURenderPassDescriptor;
+
 	function render() {
-		const renderPassDescriptor = {
-			label: "our basic canvas renderPass",
-			colorAttachments: [{
-				// view: <- to be filled out when we render
-				clearValue: [0.3, 0.3, 0.3, 1],
-				loadOp: "clear",
-				storeOp: "store",
-			}],
-		};
+		if (!device) {
+			console.error("Need a browser that supports WebGPU");
+			return;
+		}
+
+		if (!context) {
+			console.error("Could not get canvas context");
+			return;
+		}
 
 		// Get the current texture from the canvas context
 		// and set it as the texture to render to
-		renderPassDescriptor.colorAttachments[0].view =
-			context.getCurrentTexture().createView();
+		renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
 
 		// Make a command encoder to start encoding commands
 		const encoder = device.createCommandEncoder({ label: "our encoder" });
@@ -62,5 +81,5 @@ export async function main(canvas) {
 		device.queue.submit([commandBuffer]);
 	}
 
-	observeResizableCanvas(canvas, device, render);
+	observeResizableCanvas(canvas, render, device);
 }

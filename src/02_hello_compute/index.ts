@@ -1,10 +1,8 @@
+import { observeResizableCanvas } from "../utils/observeCanvas";
 import simpleCompute from "./shaders/simple-compute.wgsl?raw";
 
-/**
- * @param {HTMLCanvasElement} canvas 
- * @returns {void}
- */
-export async function main(canvas) {
+
+export async function main(canvas: HTMLCanvasElement) {
 	const adapter = await navigator.gpu?.requestAdapter();
 	const device = await adapter?.requestDevice();
 
@@ -74,18 +72,26 @@ export async function main(canvas) {
 
 	// Read the results
 	await resultBuffer.mapAsync(GPUMapMode.READ);
-	const result = new Float32Array(resultBuffer.getMappedRange());
+	// Maps to a Float32Array, but need to spread into a normal Array to unmap the buffer
+	// (probably not best practice, I just want to be able to re-render)
+	const result = [...new Float32Array(resultBuffer.getMappedRange())];
+	resultBuffer.unmap();
 
 	// Draw the input & result to the canvas
-	console.log("input", input);
-	console.log("result", result);
+	function render() {
+		const context = canvas.getContext("2d");
 
-	const context = canvas.getContext("2d");
-	context.fillStyle = "black";
-	context.fillRect(0, 0, canvas.width, canvas.height);
-	context.font = "18px sans-serif";
-	context.fillStyle = "white";
-	context.fillText(`input: [${input}], result: [${result}]`, 5, canvas.height - 10);
+		if (!context) {
+			console.error("Could not get 2d canvas context");
+			return;
+		}
 
-	resultBuffer.unmap();
+		context.fillStyle = "black";
+		context.fillRect(0, 0, canvas.width, canvas.height);
+		context.font = "18px sans-serif";
+		context.fillStyle = "white";
+		context.fillText(`input: [${input}], result: [${result}]`, 5, canvas.height - 10);
+	}
+
+	observeResizableCanvas(canvas, render);
 }
