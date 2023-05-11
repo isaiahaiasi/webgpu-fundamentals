@@ -4,9 +4,9 @@ import { getGPUDevice } from "../utils/wgpu-utils";
 
 interface ObjectInfo {
 	scale: number;
-	uniformBuffer: GPUBuffer;
-	uniformValues: Float32Array;
-	bindGroup: GPUBindGroup;
+	// uniformBuffer: GPUBuffer;
+	// uniformValues: Float32Array;
+	// bindGroup: GPUBindGroup;
 }
 
 function rand(min?: number, max?: number) {
@@ -58,65 +58,65 @@ export async function main(canvas: HTMLCanvasElement) {
 		}
 	});
 
-	// create 2 buffers for the uniform values
-	// (only scale needs to be updated each time)
-	const staticUniformBufferSize =
+
+	const kNumObjects = 100;
+	const objectInfos: ObjectInfo[] = [];
+
+	const staticUnitSize =
 		4 * 4 + // color: vec4f
 		2 * 4 + // offset: vec2f
 		2 * 4;  // padding
 
-	const uniformBufferSize =
+	const dynamicUnitSize =
 		2 * 4; // scale: vec2f
+
+	const staticStorageBufferSize = staticUnitSize * kNumObjects;
+	const dynamicStorageBufferSize = dynamicUnitSize * kNumObjects;
+
+	const staticStorageBuffer = device.createBuffer({
+		label: 'static storage for objects',
+		size: staticStorageBufferSize,
+		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+	});
+
+	const dynamicStorageBuffer = device.createBuffer({
+		label: 'dynamic storage for objects',
+		size: dynamicStorageBufferSize,
+		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+	});
 
 	const kColorOffset = 0;
 	const kOffsetOffset = 4;
 	const kScaleOffset = 0;
 
-	const kNumObjects = 100;
-	const objectInfos: ObjectInfo[] = [];
+	{
+		const staticStorageValues = new Float32Array(staticStorageBufferSize / 4);
+		for (let i = 0; i < kNumObjects; ++i) {
+			const staticOffset = i * (staticUnitSize / 4);
 
-	for (let i = 0; i < kNumObjects; ++i) {
-		const staticUniformBuffer = device.createBuffer({
-			label: `static uniforms for obj: ${i}`,
-			size: staticUniformBufferSize,
-			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-		});
+			// These are only set once so set them now
+			staticStorageValues.set([rand(), rand(), rand(), 1], staticOffset + kColorOffset);
+			staticStorageValues.set([rand(-0.9, 0.9), rand(-0.9, 0.9)], staticOffset + kOffsetOffset);
 
-		// these are only set once, so setting them immediately
-		{
-			// create a typedarray to hold the values for the uniforms in JS
-			const uniformValues = new Float32Array(staticUniformBufferSize / 4);
-			uniformValues.set([rand(), rand(), rand(), 1], kColorOffset); 		// set the color
-			uniformValues.set([rand(-0.9, 0.9), rand(-0.9, 0.9)], kOffsetOffset);	// set the offset
-
-			// copy values to GPU
-			device.queue.writeBuffer(staticUniformBuffer, 0, uniformValues);
+			objectInfos.push({
+				scale: rand(0.2, 0.5),
+			});
 		}
 
-		// create a typedarray to hold vlaues for the uniforms in JS
-		const uniformValues = new Float32Array(uniformBufferSize / 4);
-		const uniformBuffer = device.createBuffer({
-			label: `changing uniforms for obj: ${i}`,
-			size: uniformBufferSize,
-			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-		});
-
-		const bindGroup = device.createBindGroup({
-			label: `bind group for obj: ${i}`,
-			layout: pipeline.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: staticUniformBuffer } },
-				{ binding: 1, resource: { buffer: uniformBuffer } },
-			],
-		});
-
-		objectInfos.push({
-			scale: rand(0.2, 0.5),
-			uniformBuffer,
-			uniformValues,
-			bindGroup,
-		});
+		device.queue.writeBuffer(staticStorageBuffer, 0, staticStorageValues);
 	}
+
+	// typed array we can use to update the dynamicStorageBuffer
+	const storageValues = new Float32Array(dynamicStorageBufferSize / 4);
+
+	const bindGroup = device.createBindGroup({
+		label: 'bind group for objects',
+		layout: pipeline.getBindGroupLayout(0),
+		entries: [
+			{ binding: 0, resource: { buffer: staticStorageBuffer } },
+			{ binding: 1, resource: { buffer: dynamicStorageBuffer } },
+		],
+	});
 
 	const renderPassDescriptor = {
 		label: "our basic canvas renderPass",
@@ -156,13 +156,14 @@ export async function main(canvas: HTMLCanvasElement) {
 
 		const aspect = canvas.width / canvas.height;
 
-		for (const { scale, bindGroup, uniformBuffer, uniformValues } of objectInfos) {
-			uniformValues.set([scale / aspect, scale], kScaleOffset); // set the scale
-			device.queue.writeBuffer(uniformBuffer, 0, uniformValues);
-			pass.setBindGroup(0, bindGroup);
-			pass.draw(3);
-		}
+		objectInfos.forEach(({ scale }, i) => {
+			const offset = i * (dynamicUnitSize / 4);
+			storageValues.set([scale / aspect, scale], offset + kScaleOffset);
+		});
+		device.queue.writeBuffer(dynamicStorageBuffer, 0, storageValues);
 
+		pass.setBindGroup(0, bindGroup);
+		pass.draw(3, kNumObjects);
 		pass.end();
 
 		const commandBuffer = encoder.finish();
