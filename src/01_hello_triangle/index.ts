@@ -21,7 +21,7 @@ export async function main(canvas: HTMLCanvasElement) {
 	context!.configure({ device, format });
 
 	const module = device.createShaderModule({
-		label: "our hardcoded red triangle shaders",
+		label: "our hardcoded rgb triangle shaders",
 		code: triShaderCode,
 	});
 
