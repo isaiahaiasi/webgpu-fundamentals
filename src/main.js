@@ -7,6 +7,7 @@ function getWebGPUExperiment(title, id, fn) {
 	const section = document.createElement("section");
 	const titleElm = document.createElement("h2");
 	const canvas = document.createElement("canvas", { id });
+	canvas.classList.add("gpu-example");
 	section.appendChild(titleElm);
 	section.appendChild(canvas);
 	titleElm.textContent = title;

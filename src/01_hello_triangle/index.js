@@ -1,4 +1,5 @@
 import triShaderCode from "./shaders/tri.wgsl?raw";
+import { observeResizableCanvas } from "../utils/observeCanvas";
 
 export async function main(canvas) {
 	const adapter = await navigator.gpu?.requestAdapter();
@@ -61,5 +62,5 @@ export async function main(canvas) {
 		device.queue.submit([commandBuffer]);
 	}
 
-	render();
+	observeResizableCanvas(canvas, device, render);
 }
