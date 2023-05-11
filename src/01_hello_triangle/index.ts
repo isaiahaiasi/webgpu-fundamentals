@@ -2,6 +2,25 @@ import triShaderCode from "./shaders/tri.wgsl?raw";
 import { observeResizableCanvas } from "../utils/observeCanvas";
 import { getGPUDevice } from "../utils/wgpu-utils";
 
+interface ObjectInfo {
+	scale: number;
+	uniformBuffer: GPUBuffer;
+	uniformValues: Float32Array;
+	bindGroup: GPUBindGroup;
+}
+
+function rand(min?: number, max?: number) {
+	if (min == undefined) {
+		min = 0;
+		max = 1;
+	} else if (max == undefined) {
+		max = min;
+		min = 0;
+	}
+
+	return min + Math.random() * (max - min);
+}
+
 export async function main(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
 
@@ -39,6 +58,66 @@ export async function main(canvas: HTMLCanvasElement) {
 		}
 	});
 
+	// create 2 buffers for the uniform values
+	// (only scale needs to be updated each time)
+	const staticUniformBufferSize =
+		4 * 4 + // color: vec4f
+		2 * 4 + // offset: vec2f
+		2 * 4;  // padding
+
+	const uniformBufferSize =
+		2 * 4; // scale: vec2f
+
+	const kColorOffset = 0;
+	const kOffsetOffset = 4;
+	const kScaleOffset = 0;
+
+	const kNumObjects = 100;
+	const objectInfos: ObjectInfo[] = [];
+
+	for (let i = 0; i < kNumObjects; ++i) {
+		const staticUniformBuffer = device.createBuffer({
+			label: `static uniforms for obj: ${i}`,
+			size: staticUniformBufferSize,
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+		});
+
+		// these are only set once, so setting them immediately
+		{
+			// create a typedarray to hold the values for the uniforms in JS
+			const uniformValues = new Float32Array(staticUniformBufferSize / 4);
+			uniformValues.set([rand(), rand(), rand(), 1], kColorOffset); 		// set the color
+			uniformValues.set([rand(-0.9, 0.9), rand(-0.9, 0.9)], kOffsetOffset);	// set the offset
+
+			// copy values to GPU
+			device.queue.writeBuffer(staticUniformBuffer, 0, uniformValues);
+		}
+
+		// create a typedarray to hold vlaues for the uniforms in JS
+		const uniformValues = new Float32Array(uniformBufferSize / 4);
+		const uniformBuffer = device.createBuffer({
+			label: `changing uniforms for obj: ${i}`,
+			size: uniformBufferSize,
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+		});
+
+		const bindGroup = device.createBindGroup({
+			label: `bind group for obj: ${i}`,
+			layout: pipeline.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: staticUniformBuffer } },
+				{ binding: 1, resource: { buffer: uniformBuffer } },
+			],
+		});
+
+		objectInfos.push({
+			scale: rand(0.2, 0.5),
+			uniformBuffer,
+			uniformValues,
+			bindGroup,
+		});
+	}
+
 	const renderPassDescriptor = {
 		label: "our basic canvas renderPass",
 		colorAttachments: [{
@@ -74,7 +153,16 @@ export async function main(canvas: HTMLCanvasElement) {
 		// Make a render pass encoder to encode render-specific commands
 		const pass = encoder.beginRenderPass(renderPassDescriptor);
 		pass.setPipeline(pipeline);
-		pass.draw(3);
+
+		const aspect = canvas.width / canvas.height;
+
+		for (const { scale, bindGroup, uniformBuffer, uniformValues } of objectInfos) {
+			uniformValues.set([scale / aspect, scale], kScaleOffset); // set the scale
+			device.queue.writeBuffer(uniformBuffer, 0, uniformValues);
+			pass.setBindGroup(0, bindGroup);
+			pass.draw(3);
+		}
+
 		pass.end();
 
 		const commandBuffer = encoder.finish();
