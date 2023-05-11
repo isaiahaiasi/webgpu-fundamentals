@@ -1,12 +1,12 @@
 import triShaderCode from "./shaders/tri.wgsl?raw";
 import { observeResizableCanvas } from "../utils/observeCanvas";
+import { getGPUDevice } from "../utils/wgpu-utils";
 
 export async function main(canvas: HTMLCanvasElement) {
-	const adapter = await navigator.gpu?.requestAdapter();
-	const device = await adapter?.requestDevice();
+	const device = await getGPUDevice();
 
 	if (!device) {
-		console.error("Need a browser that supports WebGPU");
+		console.error("could not get device");
 		return;
 	}
 
