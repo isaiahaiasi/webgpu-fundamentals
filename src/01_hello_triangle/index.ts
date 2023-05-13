@@ -28,15 +28,21 @@ function createCircleVertices({
 	startAngle = 0,
 	endAngle = Math.PI * 2,
 } = {}) {
-	// 2 tris per subdivision, 3 verts per tri, 2 values (xy) each
+	// 2 tris per subdivision, 3 verts per tri, 5 values (xy rgb) each
 	const numVertices = numSubdivisions * 3 * 2;
-	const vertexData = new Float32Array(numSubdivisions * 2 * 3 * 2);
+	const vertexData = new Float32Array(numVertices * (2 + 3));
 
 	let offset = 0;
-	const addVertex = (x: number, y: number) => {
+	const addVertex = (x: number, y: number, r: number, g: number, b: number) => {
 		vertexData[offset++] = x;
 		vertexData[offset++] = y;
+		vertexData[offset++] = r;
+		vertexData[offset++] = g;
+		vertexData[offset++] = b;
 	};
+
+	const innerColor = [1, 1, 1] as const;
+	const outerColor = [0.1, 0.1, 0.1] as const;
 
 	// 2 vertices per subdivision
 	//
@@ -54,14 +60,14 @@ function createCircleVertices({
 		const s2 = Math.sin(angle2);
 
 		// first tri
-		addVertex(c1 * radius, s1 * radius);
-		addVertex(c2 * radius, s2 * radius);
-		addVertex(c1 * innerRadius, s1 * innerRadius);
+		addVertex(c1 * radius, s1 * radius, ...outerColor);
+		addVertex(c2 * radius, s2 * radius, ...outerColor);
+		addVertex(c1 * innerRadius, s1 * innerRadius, ...innerColor);
 
 		// second tri
-		addVertex(c1 * innerRadius, s1 * innerRadius);
-		addVertex(c2 * radius, s2 * radius);
-		addVertex(c2 * innerRadius, s2 * innerRadius);
+		addVertex(c1 * innerRadius, s1 * innerRadius, ...innerColor);
+		addVertex(c2 * radius, s2 * radius, ...outerColor);
+		addVertex(c2 * innerRadius, s2 * innerRadius, ...innerColor);
 	}
 
 	return {
@@ -99,6 +105,15 @@ export async function main(canvas: HTMLCanvasElement) {
 		vertex: {
 			module,
 			entryPoint: "vs",
+			buffers: [
+				{
+					arrayStride: 5 * 4, // vec2f (xy) & vec3f (rgb)
+					attributes: [
+						{ shaderLocation: 0, offset: 0, format: "float32x2" },		// pos
+						{ shaderLocation: 1, offset: 8, format: "float32x3" }			// col
+					],
+				},
+			],
 		},
 		fragment: {
 			module,
@@ -164,13 +179,13 @@ export async function main(canvas: HTMLCanvasElement) {
 		innerRadius: 0.25,
 	});
 
-	const vertexStorageBuffer = device.createBuffer({
-		label: "storage buffer vertices",
+	const vertexBuffer = device.createBuffer({
+		label: "vertex buffer vertices",
 		size: vertexData.byteLength,
-		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+		usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
 	});
 
-	device.queue.writeBuffer(vertexStorageBuffer, 0, vertexData);
+	device.queue.writeBuffer(vertexBuffer, 0, vertexData);
 
 	const bindGroup = device.createBindGroup({
 		label: 'bind group for objects',
@@ -178,7 +193,6 @@ export async function main(canvas: HTMLCanvasElement) {
 		entries: [
 			{ binding: 0, resource: { buffer: staticStorageBuffer } },
 			{ binding: 1, resource: { buffer: dynamicStorageBuffer } },
-			{ binding: 2, resource: { buffer: vertexStorageBuffer } },
 		],
 	});
 
@@ -217,6 +231,7 @@ export async function main(canvas: HTMLCanvasElement) {
 		// Make a render pass encoder to encode render-specific commands
 		const pass = encoder.beginRenderPass(renderPassDescriptor);
 		pass.setPipeline(pipeline);
+		pass.setVertexBuffer(0, vertexBuffer);
 
 		const aspect = canvas.width / canvas.height;
 
