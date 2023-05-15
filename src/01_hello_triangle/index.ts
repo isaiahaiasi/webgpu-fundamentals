@@ -100,7 +100,7 @@ export async function main(canvas: HTMLCanvasElement) {
 	}
 
 	const format = navigator.gpu.getPreferredCanvasFormat();
-	context!.configure({ device, format });
+	context.configure({ device, format });
 
 	const module = device.createShaderModule({
 		label: "our hardcoded rgb triangle shaders",
@@ -264,5 +264,5 @@ export async function main(canvas: HTMLCanvasElement) {
 		device.queue.submit([commandBuffer]);
 	}
 
-	observeResizableCanvas(canvas, render, device);
+	observeResizableCanvas(canvas, device, { render });
 }

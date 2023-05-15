@@ -93,5 +93,5 @@ export async function main(canvas: HTMLCanvasElement) {
 		context.fillText(`input: [${input}], result: [${result}]`, 5, canvas.height - 10);
 	}
 
-	observeResizableCanvas(canvas, render);
+	observeResizableCanvas(canvas, device, render);
 }
