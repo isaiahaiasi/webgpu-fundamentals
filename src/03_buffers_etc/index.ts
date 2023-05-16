@@ -1,5 +1,5 @@
 import triShaderCode from "./shaders/tri.wgsl?raw";
-import { observeResizableCanvas } from "../utils/observeCanvas";
+import { observeResizableCanvas } from "../utils/canvasHelpers";
 import { getGPUDevice } from "../utils/wgpu-utils";
 import { createGPUSampleSection } from "../utils/DOMHelpers";
 

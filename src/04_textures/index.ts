@@ -1,5 +1,5 @@
 import { createGPUSampleSection } from "../utils/DOMHelpers";
-import { observeResizableCanvas } from "../utils/observeCanvas";
+import { observeResizableCanvas } from "../utils/canvasHelpers";
 import { getGPUDevice } from "../utils/wgpu-utils";
 import shaderCode from "./shader.wgsl?raw";
 
