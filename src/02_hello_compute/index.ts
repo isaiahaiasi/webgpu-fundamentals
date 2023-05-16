@@ -1,3 +1,4 @@
+import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { observeResizableCanvas } from "../utils/observeCanvas";
 import { getGPUDevice } from "../utils/wgpu-utils";
 import simpleCompute from "./shaders/simple-compute.wgsl?raw";
@@ -93,5 +94,12 @@ export async function main(canvas: HTMLCanvasElement) {
 		context.fillText(`input: [${input}], result: [${result}]`, 5, canvas.height - 10);
 	}
 
-	observeResizableCanvas(canvas, device, render);
+	observeResizableCanvas(canvas, device, { render, customPixelScale: 1 / 4 });
 }
+
+
+export default createGPUSampleSection({
+	title: "02_hello_compute",
+	description: "Very simple code showing a minimal example of processing data through a compute shader.",
+	initFn: main,
+});

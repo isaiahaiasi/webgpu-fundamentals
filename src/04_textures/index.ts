@@ -1,3 +1,4 @@
+import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { observeResizableCanvas } from "../utils/observeCanvas";
 import { getGPUDevice } from "../utils/wgpu-utils";
 import shaderCode from "./shader.wgsl?raw";
@@ -20,15 +21,13 @@ export async function main(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
 
 	if (!device) {
-		console.error("could not get device");
-		return;
+		return console.error("could not get device");
 	}
 
 	const context = canvas.getContext("webgpu");
 
 	if (!context) {
-		console.error("could not get gpu canvas context");
-		return;
+		return console.error("could not get gpu canvas context");
 	}
 
 	const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -176,3 +175,9 @@ export async function main(canvas: HTMLCanvasElement) {
 	requestAnimationFrame(render);
 
 }
+
+export default createGPUSampleSection({
+	title: "04_textures",
+	description: "Sample code on the basics of textures in WebGPU, including mag/minFilters and minmaps",
+	initFn: main,
+});

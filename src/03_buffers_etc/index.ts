@@ -1,6 +1,7 @@
 import triShaderCode from "./shaders/tri.wgsl?raw";
 import { observeResizableCanvas } from "../utils/observeCanvas";
 import { getGPUDevice } from "../utils/wgpu-utils";
+import { createGPUSampleSection } from "../utils/DOMHelpers";
 
 interface ObjectInfo {
 	scale: number;
@@ -266,3 +267,10 @@ export async function main(canvas: HTMLCanvasElement) {
 
 	observeResizableCanvas(canvas, device, { render });
 }
+
+
+export default createGPUSampleSection({
+	title: "03_buffers",
+	description: "A development of 'Hello Triangle' that uses other types of buffers, including vertex buffers. Also uses instancing to reduce draw calls.",
+	initFn: main,
+});
