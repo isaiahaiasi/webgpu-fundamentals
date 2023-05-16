@@ -3,6 +3,7 @@ import helloBuffersSample from "./03_buffers_etc";
 import helloComputeSample from "./02_hello_compute";
 import helloTexturesSample from "./04_textures";
 import gameOfLifeSample from "./05_game_of_life";
+import slimeMoldSample from "./06_slime_molds";
 
 import './style.css';
 
@@ -12,4 +13,5 @@ document.querySelector('#app')?.append(
 	helloBuffersSample,
 	helloTexturesSample,
 	gameOfLifeSample,
+	slimeMoldSample,
 );
