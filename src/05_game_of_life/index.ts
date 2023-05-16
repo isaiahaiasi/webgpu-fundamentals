@@ -279,7 +279,7 @@ async function main(canvas: HTMLCanvasElement) {
 }
 
 export default createGPUSampleSection({
-	title: "04_game_of_life",
+	title: "05_game_of_life",
 	description: "A compute-shader version of Game of Life, based on https://github.com/webgpu/webgpu-samples",
 	initFn: main,
 });
