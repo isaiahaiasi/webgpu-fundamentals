@@ -6,7 +6,10 @@ import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
 
 const simOptions = {
-	moveSpeed: 10,
+	moveSpeed: 50,
+	numAgents: 16,
+	texWidth: 526,
+	texHeight: 256,
 }
 
 async function init(canvas: HTMLCanvasElement) {
@@ -69,8 +72,8 @@ async function init(canvas: HTMLCanvasElement) {
 	});
 
 	// * TEXTURES
-	const textureWidth = 512;
-	const textureHeight = 256;
+	const textureWidth = simOptions.texWidth;
+	const textureHeight = simOptions.texHeight;
 	const defaultTextureColor = [255, 0, 255, 1];
 	const textureData = new Uint8Array(
 		new Array(textureWidth * textureHeight)
@@ -101,21 +104,44 @@ async function init(canvas: HTMLCanvasElement) {
 		{ width: textureWidth, height: textureHeight },
 	);
 
-	// * BUFFERS
-	const uSceneInfoBufferSize = 4 * 2; // 2 f32s
+	// * BUFFERS -------------
+	// Uniform - SceneInfo
+	const uSceneInfoBufferSize = 4 * 2; // time(f32), dTime(f32)
 	const uSceneInfoBuffer = device.createBuffer({
 		size: uSceneInfoBufferSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 	});
 	const uSceneInfoValues = new Float32Array(uSceneInfoBufferSize / 4);
 
+	// Uniform - SimOptions
 	const uSimOptionsBufferSize = 4 * 1 + 4; // 1 f32 + padding ig
 	const uSimOptionsBuffer = device.createBuffer({
 		size: uSimOptionsBufferSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-	})
-	const uSimOptionsValues = new Float32Array(uSceneInfoBufferSize / 4);
+	});
+	const uSimOptionsValues = new ArrayBuffer(uSceneInfoBufferSize);
+	const uSimOptionsViews = {
+		moveSpeed: new Float32Array(uSimOptionsValues, 0, 1),
+		numAgents: new Int32Array(uSimOptionsValues, 4, 1),
+	}
 
+	// Storage - Agents
+	const sAgentsBufferSize = 4 * 3 * simOptions.numAgents; // 3f32
+	const sAgentsBuffer = device.createBuffer({
+		size: sAgentsBufferSize,
+		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+	});
+	const sAgentsBufferValues = new Float32Array(
+		new Array(simOptions.numAgents)
+			.fill(null)
+			.map(() => [
+				Math.random() * textureWidth,
+				Math.random() * textureHeight,
+				Math.random()
+			])
+			.flat()
+	);
+	device!.queue.writeBuffer(sAgentsBuffer, 0, sAgentsBufferValues);
 
 
 	const computeBindGroup = device.createBindGroup({
@@ -129,6 +155,10 @@ async function init(canvas: HTMLCanvasElement) {
 			{
 				binding: 1,
 				resource: { buffer: uSimOptionsBuffer },
+			},
+			{
+				binding: 2,
+				resource: { buffer: sAgentsBuffer },
 			},
 			{
 				binding: 3,
@@ -165,7 +195,8 @@ async function init(canvas: HTMLCanvasElement) {
 
 		uSceneInfoValues.set([now, deltaTime]);
 		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
-		uSimOptionsValues.set([simOptions.moveSpeed]);
+		uSimOptionsViews.moveSpeed.set([simOptions.moveSpeed]);
+		uSimOptionsViews.numAgents.set([simOptions.numAgents]);
 		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
 		const encoder = device!.createCommandEncoder({ label: "slime mold encoder" });
@@ -173,7 +204,7 @@ async function init(canvas: HTMLCanvasElement) {
 		const computePass = encoder.beginComputePass();
 		computePass.setPipeline(computePipeline);
 		computePass.setBindGroup(0, computeBindGroup);
-		computePass.dispatchWorkgroups(textureWidth, textureHeight);
+		computePass.dispatchWorkgroups(simOptions.numAgents);
 		computePass.end();
 
 		renderPassDescriptor.colorAttachments[0].view =
