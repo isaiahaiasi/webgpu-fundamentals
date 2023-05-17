@@ -2,7 +2,8 @@ import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
 import { getGPUDevice } from "../utils/wgpu-utils";
 
-import shaderCode from "./shader.wgsl?raw";
+import renderShaderCode from "./render.wgsl?raw";
+import computeShaderCode from "./compute.wgsl?raw";
 
 async function init(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
@@ -15,7 +16,10 @@ async function init(canvas: HTMLCanvasElement) {
 		return console.error("Could not get webGPU canvas context");
 	}
 
-	setCanvasDisplayOptions(canvas);
+	setCanvasDisplayOptions(canvas, {
+		customPixelScale: 1,
+		imageRendering: "auto"
+	});
 
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({
@@ -25,9 +29,42 @@ async function init(canvas: HTMLCanvasElement) {
 
 	const module = device.createShaderModule({
 		label: "Hardcoded red triangle shaders",
-		code: shaderCode,
+		code: renderShaderCode,
 	});
 
+	const textureWidth = 512;
+	const textureHeight = 256;
+	const defaultTextureColor = [255, 0, 255, 1];
+	const textureData = new Uint8Array(
+		new Array(textureWidth * textureHeight)
+			.fill(defaultTextureColor)
+			.map((_, i) => ([
+				(i % textureWidth) / textureWidth * 255,
+				Math.floor(i / textureWidth) / textureHeight * 255,
+				255,
+				0
+			]))
+			.flat()
+	);
+
+	const texture = device.createTexture({
+		size: [textureWidth, textureHeight],
+		format: "rgba8unorm",
+		usage: GPUTextureUsage.COPY_DST
+			| GPUTextureUsage.TEXTURE_BINDING
+			| GPUTextureUsage.STORAGE_BINDING
+		// idk if I need this one
+		// | GPUTextureUsage.RENDER_ATTACHMENT
+	});
+
+	device.queue.writeTexture(
+		{ texture },
+		textureData,
+		{ bytesPerRow: textureWidth * 4 },
+		{ width: textureWidth, height: textureHeight },
+	);
+
+	// TODO: update with the actual uniforms etc I need
 	const uniformBufferSize = 2 * 4; // vec2f
 	const uniformBuffer = device.createBuffer({
 		size: uniformBufferSize,
@@ -35,8 +72,19 @@ async function init(canvas: HTMLCanvasElement) {
 	});
 	const uniformValues = new Float32Array(uniformBufferSize / 4);
 
-	const pipeline = device.createRenderPipeline({
-		label: "hardcoded red triangle pipeline",
+	const computePipeline = device.createComputePipeline({
+		label: "slime mold compute pipeline",
+		layout: "auto",
+		compute: {
+			module: device.createShaderModule({
+				code: computeShaderCode,
+			}),
+			entryPoint: "cs",
+		},
+	});
+
+	const renderPipeline = device.createRenderPipeline({
+		label: "slime mold render pipeline",
 		layout: "auto",
 		vertex: {
 			module,
@@ -49,10 +97,27 @@ async function init(canvas: HTMLCanvasElement) {
 		}
 	});
 
+	const sampler = device.createSampler({
+		addressModeU: "clamp-to-edge",
+		addressModeV: "clamp-to-edge",
+		magFilter: "nearest",
+		minFilter: "nearest",
+	});
+
+	const computeBindGroup = device.createBindGroup({
+		label: "compute bind group",
+		layout: computePipeline.getBindGroupLayout(0),
+		entries: [{
+			binding: 3,
+			resource: texture.createView(),
+		}],
+	});
+
 	const bindGroup = device.createBindGroup({
-		layout: pipeline.getBindGroupLayout(0),
+		layout: renderPipeline.getBindGroupLayout(0),
 		entries: [
-			{ binding: 0, resource: { buffer: uniformBuffer } },
+			{ binding: 0, resource: sampler },
+			{ binding: 1, resource: texture.createView() }
 		],
 	});
 
@@ -72,15 +137,23 @@ async function init(canvas: HTMLCanvasElement) {
 		uniformValues.set([canvas.width, canvas.height]);
 		device!.queue.writeBuffer(uniformBuffer, 0, uniformValues);
 
+		const encoder = device!.createCommandEncoder({ label: "slime mold encoder" });
+
+		const computePass = encoder.beginComputePass();
+		computePass.setPipeline(computePipeline);
+		computePass.setBindGroup(0, computeBindGroup);
+		computePass.dispatchWorkgroups(textureWidth, textureHeight);
+		computePass.end();
+
 		renderPassDescriptor.colorAttachments[0].view =
 			context!.getCurrentTexture().createView();
 
-		const encoder = device!.createCommandEncoder({ label: "red tri encoder" });
-		const pass = encoder.beginRenderPass(renderPassDescriptor);
-		pass.setPipeline(pipeline);
-		pass.setBindGroup(0, bindGroup);
-		pass.draw(3);
-		pass.end();
+		const renderPass = encoder.beginRenderPass(renderPassDescriptor);
+		renderPass.setPipeline(renderPipeline);
+
+		renderPass.setBindGroup(0, bindGroup);
+		renderPass.draw(6);
+		renderPass.end();
 
 		const commandBuffer = encoder.finish();
 		device!.queue.submit([commandBuffer]);
