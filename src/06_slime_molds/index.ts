@@ -5,6 +5,10 @@ import { getGPUDevice } from "../utils/wgpu-utils";
 import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
 
+const simOptions = {
+	moveSpeed: 10,
+}
+
 async function init(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
 	if (!device) {
@@ -31,46 +35,6 @@ async function init(canvas: HTMLCanvasElement) {
 		label: "Hardcoded red triangle shaders",
 		code: renderShaderCode,
 	});
-
-	const textureWidth = 512;
-	const textureHeight = 256;
-	const defaultTextureColor = [255, 0, 255, 1];
-	const textureData = new Uint8Array(
-		new Array(textureWidth * textureHeight)
-			.fill(defaultTextureColor)
-			.map((_, i) => ([
-				(i % textureWidth) / textureWidth * 255,
-				Math.floor(i / textureWidth) / textureHeight * 255,
-				255,
-				0
-			]))
-			.flat()
-	);
-
-	const texture = device.createTexture({
-		size: [textureWidth, textureHeight],
-		format: "rgba8unorm",
-		usage: GPUTextureUsage.COPY_DST
-			| GPUTextureUsage.TEXTURE_BINDING
-			| GPUTextureUsage.STORAGE_BINDING
-		// idk if I need this one
-		// | GPUTextureUsage.RENDER_ATTACHMENT
-	});
-
-	device.queue.writeTexture(
-		{ texture },
-		textureData,
-		{ bytesPerRow: textureWidth * 4 },
-		{ width: textureWidth, height: textureHeight },
-	);
-
-	// TODO: update with the actual uniforms etc I need
-	const uniformBufferSize = 2 * 4; // vec2f
-	const uniformBuffer = device.createBuffer({
-		size: uniformBufferSize,
-		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-	});
-	const uniformValues = new Float32Array(uniformBufferSize / 4);
 
 	const computePipeline = device.createComputePipeline({
 		label: "slime mold compute pipeline",
@@ -104,13 +68,73 @@ async function init(canvas: HTMLCanvasElement) {
 		minFilter: "nearest",
 	});
 
+	// * TEXTURES
+	const textureWidth = 512;
+	const textureHeight = 256;
+	const defaultTextureColor = [255, 0, 255, 1];
+	const textureData = new Uint8Array(
+		new Array(textureWidth * textureHeight)
+			.fill(defaultTextureColor)
+			.map((_, i) => ([
+				(i % textureWidth) / textureWidth * 255,
+				Math.floor(i / textureWidth) / textureHeight * 255,
+				255,
+				0
+			]))
+			.flat()
+	);
+
+	const texture = device.createTexture({
+		size: [textureWidth, textureHeight],
+		format: "rgba8unorm",
+		usage: GPUTextureUsage.COPY_DST
+			| GPUTextureUsage.TEXTURE_BINDING
+			| GPUTextureUsage.STORAGE_BINDING
+		// idk if I need this one
+		// | GPUTextureUsage.RENDER_ATTACHMENT
+	});
+
+	device.queue.writeTexture(
+		{ texture },
+		textureData,
+		{ bytesPerRow: textureWidth * 4 },
+		{ width: textureWidth, height: textureHeight },
+	);
+
+	// * BUFFERS
+	const uSceneInfoBufferSize = 4 * 2; // 2 f32s
+	const uSceneInfoBuffer = device.createBuffer({
+		size: uSceneInfoBufferSize,
+		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+	});
+	const uSceneInfoValues = new Float32Array(uSceneInfoBufferSize / 4);
+
+	const uSimOptionsBufferSize = 4 * 1 + 4; // 1 f32 + padding ig
+	const uSimOptionsBuffer = device.createBuffer({
+		size: uSimOptionsBufferSize,
+		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+	})
+	const uSimOptionsValues = new Float32Array(uSceneInfoBufferSize / 4);
+
+
+
 	const computeBindGroup = device.createBindGroup({
 		label: "compute bind group",
 		layout: computePipeline.getBindGroupLayout(0),
-		entries: [{
-			binding: 3,
-			resource: texture.createView(),
-		}],
+		entries: [
+			{
+				binding: 0,
+				resource: { buffer: uSceneInfoBuffer },
+			},
+			{
+				binding: 1,
+				resource: { buffer: uSimOptionsBuffer },
+			},
+			{
+				binding: 3,
+				resource: texture.createView(),
+			}
+		],
 	});
 
 	const bindGroup = device.createBindGroup({
@@ -133,9 +157,16 @@ async function init(canvas: HTMLCanvasElement) {
 		}],
 	} satisfies GPURenderPassDescriptor;
 
-	function render() {
-		uniformValues.set([canvas.width, canvas.height]);
-		device!.queue.writeBuffer(uniformBuffer, 0, uniformValues);
+	let then = 0;
+	function render(now: number) {
+		now *= 0.001;
+		const deltaTime = now - then;
+		then = now;
+
+		uSceneInfoValues.set([now, deltaTime]);
+		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
+		uSimOptionsValues.set([simOptions.moveSpeed]);
+		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
 		const encoder = device!.createCommandEncoder({ label: "slime mold encoder" });
 
@@ -157,9 +188,11 @@ async function init(canvas: HTMLCanvasElement) {
 
 		const commandBuffer = encoder.finish();
 		device!.queue.submit([commandBuffer]);
+
+		requestAnimationFrame(render);
 	}
 
-	render();
+	requestAnimationFrame(render);
 }
 
 export default createGPUSampleSection({

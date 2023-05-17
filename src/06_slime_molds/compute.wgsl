@@ -1,9 +1,8 @@
 const PI = 3.14159265359;
 
 struct SceneInfo {
-	vp: vec2f,	// viewport dimensions (what I think I actually need are the TEXTURE dimensions...)
-	dt: f32,		// delta time
-	// total time?
+	time: f32,
+	deltaTime: f32,
 };
 
 struct SimOptions {
@@ -27,8 +26,8 @@ fn hash(s: u32) -> f32 {
     return f32(state) / 4294967295.0;
 }
 
-// @group(0) @binding(0) var<uniform> info: SceneInfo;
-// @group(0) @binding(1) var<storage, read> options: SimOptions;
+@group(0) @binding(0) var<uniform> info: SceneInfo;
+@group(0) @binding(1) var<uniform> options: SimOptions;
 
 // // not sure if it should be storage or uniform...
 // @group(0) @binding(2) var<storage, read_write> agents: array<Agent>;
@@ -38,7 +37,7 @@ fn hash(s: u32) -> f32 {
 
 // todo: experiment with workgroup_size & possibly chunking...
 @compute @workgroup_size(1) fn cs(
-	@builtin(global_invocation_id) giid: vec3<u32>
+	@builtin(global_invocation_id) giid: vec3<u32>,
 ) {
 	// let agent = agents[id.x];
 	// let prn = hash(agent.pos.y * info.vp.x + agent.pos.x + hash(id.x));
@@ -61,7 +60,8 @@ fn hash(s: u32) -> f32 {
 	// initial test:
 	// give each texel a random brightness
 	const width = 128;
+	let a = info.time / options.moveSpeed;
 	var v = hash(giid.x + giid.y * width);
-	var col = vec4f(v, v, v, 1);
+	var col = vec4f(v-a, v+a, v-a, 1);
 	textureStore(agentTex, giid.xy, col);
 }
