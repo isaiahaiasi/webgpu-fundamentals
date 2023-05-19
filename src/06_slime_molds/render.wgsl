@@ -40,7 +40,7 @@ fn vs(@builtin(vertex_index) vi: u32) -> VOut {
 
 @fragment
 fn fs(@location(0) fragUV: vec2f) -> @location(0) vec4f {
-	var a = textureSample(bgTex, texSampler, fragUV);
-	return textureSample(agentTex, texSampler, fragUV);
-		// + textureSample(agentTex, texSampler, fragUV);
+	return textureSample(agentTex, texSampler, fragUV)
+	  // + vec4f(0, 0, 0, 1);
+		+ textureSample(bgTex, texSampler, fragUV);
 }

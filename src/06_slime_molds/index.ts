@@ -6,9 +6,11 @@ import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
 
 const simOptions = {
-	evaporationSpeed: 3,
-	moveSpeed: 50,
-	numAgents: 50,
+	diffuseSpeed: 15,
+	evaporateSpeed: .4,
+	includeBg: false,
+	moveSpeed: 40,
+	numAgents: 500,
 	texWidth: 256,
 	texHeight: 128,
 }
@@ -60,12 +62,12 @@ async function init(canvas: HTMLCanvasElement) {
 		const bgTexData = new Uint8Array(
 			new Array(textureWidth * textureHeight)
 				.fill(0)
-				.map((_, i) => ([
+				.map((_, i) => (simOptions.includeBg ? [
 					(i % textureWidth) / textureWidth * 255,
 					Math.floor(i / textureWidth) / textureHeight * 255,
 					255,
 					0 // not sure it's possible to align an array of vec3s???
-				]))
+				] : [0, 0, 0, 0]))
 				.flat()
 		);
 
@@ -121,6 +123,7 @@ async function init(canvas: HTMLCanvasElement) {
 			size: [textureWidth, textureHeight],
 			format: "rgba8unorm",
 			usage: GPUTextureUsage.COPY_DST
+				| GPUTextureUsage.COPY_SRC
 				| GPUTextureUsage.TEXTURE_BINDING
 				| GPUTextureUsage.STORAGE_BINDING
 		});
@@ -173,7 +176,7 @@ async function init(canvas: HTMLCanvasElement) {
 	const uSceneInfoValues = new Float32Array(uSceneInfoBufferSize / 4);
 
 	// Uniform - SimOptions
-	const uSimOptionsBufferSize = 12;
+	const uSimOptionsBufferSize = 16;
 	const uSimOptionsBuffer = device.createBuffer({
 		size: uSimOptionsBufferSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -181,9 +184,10 @@ async function init(canvas: HTMLCanvasElement) {
 
 	const uSimOptionsValues = new ArrayBuffer(uSimOptionsBufferSize);
 	const uSimOptionsViews = {
-		evaporationSpeed: new Float32Array(uSimOptionsValues, 4, 1),
-		moveSpeed: new Float32Array(uSimOptionsValues, 0, 1),
-		numAgents: new Uint32Array(uSimOptionsValues, 8, 1),
+		diffuseSpeed: new Float32Array(uSimOptionsValues, 0, 1),
+		evaporateSpeed: new Float32Array(uSimOptionsValues, 4, 1),
+		moveSpeed: new Float32Array(uSimOptionsValues, 8, 1),
+		numAgents: new Uint32Array(uSimOptionsValues, 12, 1),
 	};
 
 
@@ -349,7 +353,8 @@ async function init(canvas: HTMLCanvasElement) {
 
 		uSceneInfoValues.set([now, deltaTime]);
 		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
-		uSimOptionsViews.evaporationSpeed.set([simOptions.evaporationSpeed]);
+		uSimOptionsViews.diffuseSpeed.set([simOptions.diffuseSpeed]);
+		uSimOptionsViews.evaporateSpeed.set([simOptions.evaporateSpeed]);
 		uSimOptionsViews.moveSpeed.set([simOptions.moveSpeed]);
 		uSimOptionsViews.numAgents.set([simOptions.numAgents]);
 		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
@@ -379,6 +384,12 @@ async function init(canvas: HTMLCanvasElement) {
 		renderPass.setBindGroup(0, renderBindGroup);
 		renderPass.draw(6);
 		renderPass.end();
+
+		encoder.copyTextureToTexture(
+			{ texture: trailTexture },
+			{ texture: agentsTexture },
+			[textureWidth, textureHeight, 1],
+		);
 
 		const commandBuffer = encoder.finish();
 		device!.queue.submit([commandBuffer]);
