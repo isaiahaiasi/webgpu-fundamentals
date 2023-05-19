@@ -6,10 +6,11 @@ import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
 
 const simOptions = {
+	evaporationSpeed: 3,
 	moveSpeed: 50,
-	numAgents: 16,
-	texWidth: 526,
-	texHeight: 256,
+	numAgents: 50,
+	texWidth: 256,
+	texHeight: 128,
 }
 
 async function init(canvas: HTMLCanvasElement) {
@@ -34,34 +35,14 @@ async function init(canvas: HTMLCanvasElement) {
 		device
 	});
 
-	const module = device.createShaderModule({
-		label: "Hardcoded red triangle shaders",
+	const computeModule = device.createShaderModule({
+		label: "slime mold::module::compute",
+		code: computeShaderCode,
+	});
+
+	const renderModule = device.createShaderModule({
+		label: "slime mold::module::render",
 		code: renderShaderCode,
-	});
-
-	const computePipeline = device.createComputePipeline({
-		label: "slime mold compute pipeline",
-		layout: "auto",
-		compute: {
-			module: device.createShaderModule({
-				code: computeShaderCode,
-			}),
-			entryPoint: "cs",
-		},
-	});
-
-	const renderPipeline = device.createRenderPipeline({
-		label: "slime mold render pipeline",
-		layout: "auto",
-		vertex: {
-			module,
-			entryPoint: "vs",
-		},
-		fragment: {
-			module,
-			entryPoint: "fs",
-			targets: [{ format: presentationFormat }],
-		}
 	});
 
 	const sampler = device.createSampler({
@@ -74,39 +55,117 @@ async function init(canvas: HTMLCanvasElement) {
 	// * TEXTURES
 	const textureWidth = simOptions.texWidth;
 	const textureHeight = simOptions.texHeight;
-	const defaultTextureColor = [255, 0, 255, 1];
-	const textureData = new Uint8Array(
-		new Array(textureWidth * textureHeight)
-			.fill(defaultTextureColor)
-			.map((_, i) => ([
-				(i % textureWidth) / textureWidth * 255,
-				Math.floor(i / textureWidth) / textureHeight * 255,
-				255,
-				0
-			]))
-			.flat()
-	);
 
-	const texture = device.createTexture({
-		size: [textureWidth, textureHeight],
-		format: "rgba8unorm",
-		usage: GPUTextureUsage.COPY_DST
-			| GPUTextureUsage.TEXTURE_BINDING
-			| GPUTextureUsage.STORAGE_BINDING
-		// idk if I need this one
-		// | GPUTextureUsage.RENDER_ATTACHMENT
-	});
+	const bgTexture = (() => {
+		const bgTexData = new Uint8Array(
+			new Array(textureWidth * textureHeight)
+				.fill(0)
+				.map((_, i) => ([
+					(i % textureWidth) / textureWidth * 255,
+					Math.floor(i / textureWidth) / textureHeight * 255,
+					255,
+					0 // not sure it's possible to align an array of vec3s???
+				]))
+				.flat()
+		);
 
-	device.queue.writeTexture(
-		{ texture },
-		textureData,
-		{ bytesPerRow: textureWidth * 4 },
-		{ width: textureWidth, height: textureHeight },
-	);
+		const texture = device.createTexture({
+			size: [textureWidth, textureHeight],
+			format: "rgba8unorm",
+			usage: GPUTextureUsage.COPY_DST
+				| GPUTextureUsage.TEXTURE_BINDING
+				| GPUTextureUsage.STORAGE_BINDING
+		});
+
+		device.queue.writeTexture(
+			{ texture },
+			bgTexData,
+			{ bytesPerRow: textureWidth * 4 },
+			{ width: textureWidth, height: textureHeight },
+		);
+
+		return texture;
+	})();
+
+	const agentsTexture = (() => {
+		// initialize with all 0s
+		const agentsTexData = new Uint8Array(
+			new Array(textureWidth * textureHeight * 4).fill(0)
+		);
+
+		const texture = device.createTexture({
+			size: [textureWidth, textureHeight],
+			format: "rgba8unorm",
+			usage: GPUTextureUsage.COPY_DST
+				| GPUTextureUsage.TEXTURE_BINDING
+				| GPUTextureUsage.STORAGE_BINDING
+		});
+
+		device.queue.writeTexture(
+			{ texture },
+			agentsTexData,
+			{ bytesPerRow: textureWidth * 4 },
+			{ width: textureWidth, height: textureHeight },
+		);
+
+		return texture;
+	})();
+
+	const trailTexture = (() => {
+		// initialize with all 0s
+		const agentsTexData = new Uint8Array(
+			new Array(textureWidth * textureHeight * 4).fill(0)
+		);
+
+		const texture = device.createTexture({
+			size: [textureWidth, textureHeight],
+			format: "rgba8unorm",
+			usage: GPUTextureUsage.COPY_DST
+				| GPUTextureUsage.TEXTURE_BINDING
+				| GPUTextureUsage.STORAGE_BINDING
+		});
+
+		device.queue.writeTexture(
+			{ texture },
+			agentsTexData,
+			{ bytesPerRow: textureWidth * 4 },
+			{ width: textureWidth, height: textureHeight },
+		);
+
+		return texture;
+	})();
+
+	// ! FIXME: I cannot figure out how to split bind groups in a single shader module
+	// So I'm passing unnecessary and dummy data to the shader...
+	const dummyTexture = (() => {
+		const dummySize = 4;
+		// initialize with all 0s
+		const agentsTexData = new Uint8Array(
+			new Array(dummySize * dummySize * 4).fill(0)
+		);
+
+		const texture = device.createTexture({
+			size: [dummySize, dummySize],
+			format: "rgba8unorm",
+			usage: GPUTextureUsage.COPY_DST
+				| GPUTextureUsage.TEXTURE_BINDING
+				| GPUTextureUsage.STORAGE_BINDING
+		});
+
+		device.queue.writeTexture(
+			{ texture },
+			agentsTexData,
+			{ bytesPerRow: dummySize * 4 },
+			{ width: dummySize, height: dummySize },
+		);
+
+		return texture;
+	})();
+
 
 	// * BUFFERS -------------
 	// Uniform - SceneInfo
-	const uSceneInfoBufferSize = 4 * 2; // time(f32), dTime(f32)
+	const uSceneInfoBufferSize = 8; // time(f32), dTime(f32)
 	const uSceneInfoBuffer = device.createBuffer({
 		size: uSceneInfoBufferSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -114,19 +173,22 @@ async function init(canvas: HTMLCanvasElement) {
 	const uSceneInfoValues = new Float32Array(uSceneInfoBufferSize / 4);
 
 	// Uniform - SimOptions
-	const uSimOptionsBufferSize = 4 * 1 + 4; // 1 f32 + padding ig
+	const uSimOptionsBufferSize = 12;
 	const uSimOptionsBuffer = device.createBuffer({
 		size: uSimOptionsBufferSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 	});
-	const uSimOptionsValues = new ArrayBuffer(uSceneInfoBufferSize);
+
+	const uSimOptionsValues = new ArrayBuffer(uSimOptionsBufferSize);
 	const uSimOptionsViews = {
+		evaporationSpeed: new Float32Array(uSimOptionsValues, 4, 1),
 		moveSpeed: new Float32Array(uSimOptionsValues, 0, 1),
-		numAgents: new Int32Array(uSimOptionsValues, 4, 1),
-	}
+		numAgents: new Uint32Array(uSimOptionsValues, 8, 1),
+	};
+
 
 	// Storage - Agents
-	const sAgentsBufferSize = 4 * 3 * simOptions.numAgents; // 3f32
+	const sAgentsBufferSize = 16 * simOptions.numAgents; // 3f32
 	const sAgentsBuffer = device.createBuffer({
 		size: sAgentsBufferSize,
 		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -135,43 +197,131 @@ async function init(canvas: HTMLCanvasElement) {
 		new Array(simOptions.numAgents)
 			.fill(null)
 			.map(() => [
-				Math.random() * textureWidth,
-				Math.random() * textureHeight,
-				Math.random()
+				simOptions.texWidth / 2,
+				simOptions.texHeight / 2,
+				Math.random() * Math.PI * 2,
+				0,
 			])
 			.flat()
 	);
-	device!.queue.writeBuffer(sAgentsBuffer, 0, sAgentsBufferValues);
+	device.queue.writeBuffer(sAgentsBuffer, 0, sAgentsBufferValues);
 
-
-	const computeBindGroup = device.createBindGroup({
-		label: "compute bind group",
-		layout: computePipeline.getBindGroupLayout(0),
+	const computeBindGroupLayout0 = device.createBindGroupLayout({
 		entries: [
 			{
 				binding: 0,
-				resource: { buffer: uSceneInfoBuffer },
+				visibility: GPUShaderStage.COMPUTE,
+				buffer: { type: "uniform" },
 			},
 			{
 				binding: 1,
-				resource: { buffer: uSimOptionsBuffer },
+				visibility: GPUShaderStage.COMPUTE,
+				buffer: { type: "uniform" },
 			},
+		]
+	});
+
+	const computeBindGroupLayout1 = device.createBindGroupLayout({
+		entries: [
 			{
 				binding: 2,
-				resource: { buffer: sAgentsBuffer },
+				visibility: GPUShaderStage.COMPUTE,
+				buffer: { type: "storage" },
 			},
 			{
 				binding: 3,
-				resource: texture.createView(),
-			}
+				visibility: GPUShaderStage.COMPUTE,
+				storageTexture: { format: "rgba8unorm" },
+			},
+			{
+				binding: 4,
+				visibility: GPUShaderStage.COMPUTE,
+				texture: {},
+			},
+			{
+				binding: 5,
+				visibility: GPUShaderStage.COMPUTE,
+				storageTexture: { format: "rgba8unorm" },
+			},
+		]
+	});
+
+
+	const computeUpdatePipeline = device.createComputePipeline({
+		label: "slime mold::pipeline::compute::update_agents",
+		layout: device.createPipelineLayout({
+			bindGroupLayouts: [computeBindGroupLayout0, computeBindGroupLayout1]
+		}),
+		compute: {
+			module: computeModule,
+			entryPoint: "update_agents",
+		},
+	});
+
+	const computeProcessPipeline = device.createComputePipeline({
+		label: "slime mold::pipeline::compute::process_trailmap",
+		layout: device.createPipelineLayout({
+			bindGroupLayouts: [computeBindGroupLayout0, computeBindGroupLayout1]
+		}),
+		compute: {
+			module: computeModule,
+			entryPoint: "process_trailmap",
+		},
+	});
+
+	const renderPipeline = device.createRenderPipeline({
+		label: "slime mold::pipeline::render",
+		layout: "auto",
+		vertex: {
+			module: renderModule,
+			entryPoint: "vs",
+		},
+		fragment: {
+			module: renderModule,
+			entryPoint: "fs",
+			targets: [{ format: presentationFormat }],
+		}
+	});
+
+
+	const computeBindGroup0 = device.createBindGroup({
+		label: "slime mold::bindgroup::compute::0",
+		layout: computeUpdatePipeline.getBindGroupLayout(0),
+		entries: [
+			{ binding: 0, resource: { buffer: uSceneInfoBuffer } },
+			{ binding: 1, resource: { buffer: uSimOptionsBuffer } },
 		],
 	});
 
-	const bindGroup = device.createBindGroup({
+	const computeBindGroup1 = device.createBindGroup({
+		label: "slime mold::bindgroup::compute::1",
+		layout: computeUpdatePipeline.getBindGroupLayout(1),
+		entries: [
+			{ binding: 2, resource: { buffer: sAgentsBuffer } },
+			{ binding: 3, resource: agentsTexture.createView() },
+			{ binding: 4, resource: dummyTexture.createView() },
+			{ binding: 5, resource: trailTexture.createView() },
+		],
+	});
+
+	const computeBindGroup2 = device.createBindGroup({
+		label: "slime mold::bindgroup::compute::2",
+		layout: computeUpdatePipeline.getBindGroupLayout(1),
+		entries: [
+			{ binding: 2, resource: { buffer: sAgentsBuffer } },
+			{ binding: 3, resource: dummyTexture.createView() },
+			{ binding: 4, resource: agentsTexture.createView() },
+			{ binding: 5, resource: trailTexture.createView() },
+		],
+	});
+
+	const renderBindGroup = device.createBindGroup({
+		label: "slime mold::bindgroup::render::0",
 		layout: renderPipeline.getBindGroupLayout(0),
 		entries: [
 			{ binding: 0, resource: sampler },
-			{ binding: 1, resource: texture.createView() }
+			{ binding: 1, resource: bgTexture.createView() },
+			{ binding: 2, resource: trailTexture.createView() },
 		],
 	});
 
@@ -192,19 +342,32 @@ async function init(canvas: HTMLCanvasElement) {
 		now *= 0.001;
 		const deltaTime = now - then;
 		then = now;
+		const fpsCounter = document.querySelector("#fps-counter");
+		if (fpsCounter) {
+			fpsCounter.textContent = "time: " + deltaTime;
+		}
 
 		uSceneInfoValues.set([now, deltaTime]);
 		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
+		uSimOptionsViews.evaporationSpeed.set([simOptions.evaporationSpeed]);
 		uSimOptionsViews.moveSpeed.set([simOptions.moveSpeed]);
 		uSimOptionsViews.numAgents.set([simOptions.numAgents]);
 		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
 		const encoder = device!.createCommandEncoder({ label: "slime mold encoder" });
 
-		const computePass = encoder.beginComputePass();
-		computePass.setPipeline(computePipeline);
-		computePass.setBindGroup(0, computeBindGroup);
+		let computePass = encoder.beginComputePass();
+		computePass.setPipeline(computeUpdatePipeline);
+		computePass.setBindGroup(0, computeBindGroup0);
+		computePass.setBindGroup(1, computeBindGroup1);
 		computePass.dispatchWorkgroups(simOptions.numAgents);
+		computePass.end();
+
+		computePass = encoder.beginComputePass();
+		computePass.setPipeline(computeProcessPipeline);
+		computePass.setBindGroup(0, computeBindGroup0);
+		computePass.setBindGroup(1, computeBindGroup2);
+		computePass.dispatchWorkgroups(textureWidth, textureHeight);
 		computePass.end();
 
 		renderPassDescriptor.colorAttachments[0].view =
@@ -213,7 +376,7 @@ async function init(canvas: HTMLCanvasElement) {
 		const renderPass = encoder.beginRenderPass(renderPassDescriptor);
 		renderPass.setPipeline(renderPipeline);
 
-		renderPass.setBindGroup(0, bindGroup);
+		renderPass.setBindGroup(0, renderBindGroup);
 		renderPass.draw(6);
 		renderPass.end();
 
