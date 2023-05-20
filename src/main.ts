@@ -8,10 +8,10 @@ import slimeMoldSample from "./06_slime_molds";
 import './style.css';
 
 document.querySelector('#app')?.append(
+	slimeMoldSample,
 	helloTriangle,
 	helloComputeSample,
 	helloBuffersSample,
 	helloTexturesSample,
 	gameOfLifeSample,
-	slimeMoldSample,
 );

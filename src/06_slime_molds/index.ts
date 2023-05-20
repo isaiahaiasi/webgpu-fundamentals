@@ -13,17 +13,20 @@ const options = {
 };
 
 const shaderOptions = {
-	numAgents: 60000,
-	evaporateSpeed: .1,
-	diffuseSpeed: 90,
-	moveSpeed: 30,
+	numAgents: 600, // TODO: specify num "dimensions"
+	evaporateSpeed: .12,
+	// evaporateWeight: [],
+	diffuseSpeed: 80,
+	moveSpeed: 20,
 	sensorAngle: 30 * (Math.PI / 180), // radian angle of left/right sensors
-	sensorDst: 20,
-	sensorSize: 6, // square radius around sensor center
-	turnSpeed: 15,
+	sensorDst: 55,
+	sensorSize: 2, // square radius around sensor center
+	turnSpeed: 5,
 };
 
 const POSITION = {
+	// TODO: area of circle
+	// TODO: edge of circle
 	center: () => [options.texWidth / 2, options.texHeight / 2],
 	field: () => [
 		Math.random() * options.texWidth,
@@ -36,12 +39,13 @@ const POSITION = {
 };
 
 const DIRECTION = {
+	// TODO: facing center
 	random: () => Math.random() * Math.PI * 2,
 };
 
 function getSpawnPosition() {
 	return [
-		...POSITION.subField(5),
+		...POSITION.subField(8),
 		DIRECTION.random(),
 		0,
 	];
@@ -217,14 +221,14 @@ async function init(canvas: HTMLCanvasElement) {
 
 
 	// Storage - Agents
-	const sAgentsBufferSize = 16 * shaderOptions.numAgents; // 3f32
+	const sAgentsBufferSize = 16 * shaderOptions.numAgents * shaderOptions.numAgents; // 3f32
 	const sAgentsBuffer = device.createBuffer({
 		size: sAgentsBufferSize,
 		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
 	});
 	const sAgentsBufferValues = new Float32Array(
-		new Array(shaderOptions.numAgents)
-			.fill(null)
+		new Array(shaderOptions.numAgents * shaderOptions.numAgents)
+			.fill(0)
 			.map(getSpawnPosition)
 			.flat()
 	);
@@ -399,7 +403,7 @@ async function init(canvas: HTMLCanvasElement) {
 		computePass.setPipeline(computeUpdatePipeline);
 		computePass.setBindGroup(0, computeBindGroup0);
 		computePass.setBindGroup(1, computeBindGroup1);
-		computePass.dispatchWorkgroups(shaderOptions.numAgents);
+		computePass.dispatchWorkgroups(shaderOptions.numAgents, shaderOptions.numAgents);
 		computePass.end();
 
 		computePass = encoder.beginComputePass();

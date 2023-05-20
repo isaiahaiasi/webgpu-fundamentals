@@ -71,18 +71,19 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 }
 
 // todo: experiment with workgroup_size & possibly chunking...
-@compute @workgroup_size(64) fn update_agents(
+@compute @workgroup_size(8, 8) fn update_agents(
 	@builtin(global_invocation_id) giid: vec3<u32>,
 ) {
-	if (giid.x < 0 || giid.x >= options.numAgents) {
+	if (giid.x < 0 || giid.x >= options.numAgents || giid.y < 0 || giid.y >= options.numAgents) {
 		return;
 	}
 
 	let tDims = textureDimensions(readTex);
+	let _id = giid.x + giid.y * options.numAgents;
 
-	var agent = agents[giid.x];
+	var agent = agents[_id];
 	let prn = normHash(hash(
-		u32(agent.pos.y * f32(tDims.x) + agent.pos.x) + hash(giid.x)
+		u32(agent.pos.y * f32(tDims.x) + agent.pos.x) + hash(_id)
 	));
 
 	// pick a direction (w some random variance)
@@ -113,10 +114,10 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 		angle = -prn * options.turnSpeed * info.deltaTime;
 	}
 
-	agents[giid.x].angle += angle;
+	agents[_id].angle = (agents[_id].angle + angle) % (2 * PI);
 
 	// move agent based on direction and speed
-	let dir = vec2f(cos(agents[giid.x].angle), sin(agents[giid.x].angle));
+	let dir = vec2f(cos(agents[_id].angle), sin(agents[_id].angle));
 	var newPos = agent.pos + dir * options.moveSpeed * info.deltaTime;
 
 	// pick a new, random angle if hit a boundary
@@ -126,11 +127,11 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 		newPos.y = clamp(newPos.y, 0, f32(tDims.y));
 		// I shouldn't have to add & modulo, but if I just assign directly
 		// to prn*2*PI, they get stuck! Not sure why.
-		agents[giid.x].angle += (prn * 2 * PI) % (2 * PI);
+		agents[_id].angle += (prn * 2 * PI) % (2 * PI);
 	}
 
-	agents[giid.x].pos = newPos;
-	textureStore(writeTex, vec2u(agents[giid.x].pos), vec4f(.85));
+	agents[_id].pos = newPos;
+	textureStore(writeTex, vec2u(newPos), vec4f(.85));
 }
 
 @compute @workgroup_size(16) fn process_trailmap(
@@ -175,9 +176,10 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	);
 
 	// Make the diffused trail also "evaporate" (fade out) over time
+	let colWeight = vec4f(0.2, 0.1, 0, 0);
 	let evaporatedValue = max(
 		vec4f(0),
-		diffusedValue - options.evaporateSpeed * info.deltaTime
+		diffusedValue - colWeight * info.deltaTime - options.evaporateSpeed * info.deltaTime,
 	);
 
 	textureStore(
