@@ -5,14 +5,33 @@ import { getGPUDevice } from "../utils/wgpu-utils";
 import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
 
-const simOptions = {
-	diffuseSpeed: 15,
-	evaporateSpeed: .4,
+const options = {
 	includeBg: false,
-	moveSpeed: 40,
-	numAgents: 500,
-	texWidth: 256,
-	texHeight: 128,
+	debug: false,
+	texWidth: 320,
+	texHeight: 180,
+};
+
+const shaderOptions = {
+	numAgents: 250,
+	evaporateSpeed: 0.2,
+	diffuseSpeed: 8,
+	moveSpeed: 20,
+	sensorAngle: 20 * (Math.PI / 180), // radian angle of left/right sensors
+	sensorDst: 3,
+	sensorSize: 3, // square radius around sensor center
+	turnSpeed: 1,
+};
+
+function getSpawnPosition() {
+	const cx = options.texWidth / 2;
+	const cy = options.texHeight / 2;
+	return [
+		cx,
+		cy,
+		Math.random() * Math.PI * 2,
+		0,
+	];
 }
 
 async function init(canvas: HTMLCanvasElement) {
@@ -27,7 +46,6 @@ async function init(canvas: HTMLCanvasElement) {
 	}
 
 	setCanvasDisplayOptions(canvas, {
-		customPixelScale: 1,
 		imageRendering: "auto"
 	});
 
@@ -50,21 +68,19 @@ async function init(canvas: HTMLCanvasElement) {
 	const sampler = device.createSampler({
 		addressModeU: "clamp-to-edge",
 		addressModeV: "clamp-to-edge",
-		magFilter: "nearest",
-		minFilter: "nearest",
+		magFilter: "linear",
+		minFilter: "linear",
 	});
 
 	// * TEXTURES
-	const textureWidth = simOptions.texWidth;
-	const textureHeight = simOptions.texHeight;
 
 	const bgTexture = (() => {
 		const bgTexData = new Uint8Array(
-			new Array(textureWidth * textureHeight)
+			new Array(options.texWidth * options.texHeight)
 				.fill(0)
-				.map((_, i) => (simOptions.includeBg ? [
-					(i % textureWidth) / textureWidth * 255,
-					Math.floor(i / textureWidth) / textureHeight * 255,
+				.map((_, i) => (options.includeBg ? [
+					(i % options.texWidth) / options.texWidth * 255,
+					Math.floor(i / options.texWidth) / options.texHeight * 255,
 					255,
 					0 // not sure it's possible to align an array of vec3s???
 				] : [0, 0, 0, 0]))
@@ -72,7 +88,7 @@ async function init(canvas: HTMLCanvasElement) {
 		);
 
 		const texture = device.createTexture({
-			size: [textureWidth, textureHeight],
+			size: [options.texWidth, options.texHeight],
 			format: "rgba8unorm",
 			usage: GPUTextureUsage.COPY_DST
 				| GPUTextureUsage.TEXTURE_BINDING
@@ -82,8 +98,8 @@ async function init(canvas: HTMLCanvasElement) {
 		device.queue.writeTexture(
 			{ texture },
 			bgTexData,
-			{ bytesPerRow: textureWidth * 4 },
-			{ width: textureWidth, height: textureHeight },
+			{ bytesPerRow: options.texWidth * 4 },
+			{ width: options.texWidth, height: options.texHeight },
 		);
 
 		return texture;
@@ -92,11 +108,11 @@ async function init(canvas: HTMLCanvasElement) {
 	const agentsTexture = (() => {
 		// initialize with all 0s
 		const agentsTexData = new Uint8Array(
-			new Array(textureWidth * textureHeight * 4).fill(0)
+			new Array(options.texWidth * options.texHeight * 4).fill(0)
 		);
 
 		const texture = device.createTexture({
-			size: [textureWidth, textureHeight],
+			size: [options.texWidth, options.texHeight],
 			format: "rgba8unorm",
 			usage: GPUTextureUsage.COPY_DST
 				| GPUTextureUsage.TEXTURE_BINDING
@@ -106,8 +122,8 @@ async function init(canvas: HTMLCanvasElement) {
 		device.queue.writeTexture(
 			{ texture },
 			agentsTexData,
-			{ bytesPerRow: textureWidth * 4 },
-			{ width: textureWidth, height: textureHeight },
+			{ bytesPerRow: options.texWidth * 4 },
+			{ width: options.texWidth, height: options.texHeight },
 		);
 
 		return texture;
@@ -116,11 +132,11 @@ async function init(canvas: HTMLCanvasElement) {
 	const trailTexture = (() => {
 		// initialize with all 0s
 		const agentsTexData = new Uint8Array(
-			new Array(textureWidth * textureHeight * 4).fill(0)
+			new Array(options.texWidth * options.texHeight * 4).fill(0)
 		);
 
 		const texture = device.createTexture({
-			size: [textureWidth, textureHeight],
+			size: [options.texWidth, options.texHeight],
 			format: "rgba8unorm",
 			usage: GPUTextureUsage.COPY_DST
 				| GPUTextureUsage.COPY_SRC
@@ -131,35 +147,8 @@ async function init(canvas: HTMLCanvasElement) {
 		device.queue.writeTexture(
 			{ texture },
 			agentsTexData,
-			{ bytesPerRow: textureWidth * 4 },
-			{ width: textureWidth, height: textureHeight },
-		);
-
-		return texture;
-	})();
-
-	// ! FIXME: I cannot figure out how to split bind groups in a single shader module
-	// So I'm passing unnecessary and dummy data to the shader...
-	const dummyTexture = (() => {
-		const dummySize = 4;
-		// initialize with all 0s
-		const agentsTexData = new Uint8Array(
-			new Array(dummySize * dummySize * 4).fill(0)
-		);
-
-		const texture = device.createTexture({
-			size: [dummySize, dummySize],
-			format: "rgba8unorm",
-			usage: GPUTextureUsage.COPY_DST
-				| GPUTextureUsage.TEXTURE_BINDING
-				| GPUTextureUsage.STORAGE_BINDING
-		});
-
-		device.queue.writeTexture(
-			{ texture },
-			agentsTexData,
-			{ bytesPerRow: dummySize * 4 },
-			{ width: dummySize, height: dummySize },
+			{ bytesPerRow: options.texWidth * 4 },
+			{ width: options.texWidth, height: options.texHeight },
 		);
 
 		return texture;
@@ -176,39 +165,61 @@ async function init(canvas: HTMLCanvasElement) {
 	const uSceneInfoValues = new Float32Array(uSceneInfoBufferSize / 4);
 
 	// Uniform - SimOptions
-	const uSimOptionsBufferSize = 16;
-	const uSimOptionsBuffer = device.createBuffer({
-		size: uSimOptionsBufferSize,
-		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-	});
-
-	const uSimOptionsValues = new ArrayBuffer(uSimOptionsBufferSize);
+	// MUST BE IN ALPHABETICAL ORDER TO MATCH WGSL STRUCT!
+	const uSimOptionsValues = new ArrayBuffer(32);
 	const uSimOptionsViews = {
 		diffuseSpeed: new Float32Array(uSimOptionsValues, 0, 1),
 		evaporateSpeed: new Float32Array(uSimOptionsValues, 4, 1),
 		moveSpeed: new Float32Array(uSimOptionsValues, 8, 1),
 		numAgents: new Uint32Array(uSimOptionsValues, 12, 1),
+		sensorAngle: new Float32Array(uSimOptionsValues, 16, 1),
+		sensorDst: new Float32Array(uSimOptionsValues, 20, 1),
+		sensorSize: new Uint32Array(uSimOptionsValues, 24, 1),
+		turnSpeed: new Float32Array(uSimOptionsValues, 28, 1),
 	};
 
 
+	const uSimOptionsBuffer = device.createBuffer({
+		size: uSimOptionsValues.byteLength,
+		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+	});
+
+	// Storage - Debug
+
+	const debugInputBufferValues = new Float32Array([0, 0, 0, 0, 0, 0]);
+	const uDebugInputBuffer = device.createBuffer({
+		label: "debug input buffer",
+		size: debugInputBufferValues.byteLength,
+		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+	});
+
+	device.queue.writeBuffer(uDebugInputBuffer, 0, debugInputBufferValues);
+
+	// Create a buffer on the GPU to get a copy of the results
+	const uDebugOutputBuffer = device.createBuffer({
+		label: "debug output buffer",
+		size: debugInputBufferValues.byteLength,
+		usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+	});
+
+
 	// Storage - Agents
-	const sAgentsBufferSize = 16 * simOptions.numAgents; // 3f32
+	const sAgentsBufferSize = 16 * shaderOptions.numAgents; // 3f32
 	const sAgentsBuffer = device.createBuffer({
 		size: sAgentsBufferSize,
 		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
 	});
 	const sAgentsBufferValues = new Float32Array(
-		new Array(simOptions.numAgents)
+		new Array(shaderOptions.numAgents)
 			.fill(null)
-			.map(() => [
-				simOptions.texWidth / 2,
-				simOptions.texHeight / 2,
-				Math.random() * Math.PI * 2,
-				0,
-			])
+			.map(getSpawnPosition)
 			.flat()
 	);
 	device.queue.writeBuffer(sAgentsBuffer, 0, sAgentsBufferValues);
+
+	// * BIND GROUP LAYOUTS
+	// These are very tedious and repetitive
+	// but I need them to share bind groups between pipelines
 
 	const computeBindGroupLayout0 = device.createBindGroupLayout({
 		entries: [
@@ -222,34 +233,35 @@ async function init(canvas: HTMLCanvasElement) {
 				visibility: GPUShaderStage.COMPUTE,
 				buffer: { type: "uniform" },
 			},
-		]
-	});
-
-	const computeBindGroupLayout1 = device.createBindGroupLayout({
-		entries: [
 			{
 				binding: 2,
 				visibility: GPUShaderStage.COMPUTE,
 				buffer: { type: "storage" },
 			},
+		],
+	});
+
+	const computeBindGroupLayout1 = device.createBindGroupLayout({
+		entries: [
 			{
-				binding: 3,
+				binding: 0,
+				visibility: GPUShaderStage.COMPUTE,
+				buffer: { type: "storage" },
+			},
+			{
+				binding: 1,
 				visibility: GPUShaderStage.COMPUTE,
 				storageTexture: { format: "rgba8unorm" },
 			},
 			{
-				binding: 4,
+				binding: 2,
 				visibility: GPUShaderStage.COMPUTE,
 				texture: {},
-			},
-			{
-				binding: 5,
-				visibility: GPUShaderStage.COMPUTE,
-				storageTexture: { format: "rgba8unorm" },
 			},
 		]
 	});
 
+	// * PIPELINES
 
 	const computeUpdatePipeline = device.createComputePipeline({
 		label: "slime mold::pipeline::compute::update_agents",
@@ -288,12 +300,15 @@ async function init(canvas: HTMLCanvasElement) {
 	});
 
 
+	// * BIND GROUPS
+
 	const computeBindGroup0 = device.createBindGroup({
 		label: "slime mold::bindgroup::compute::0",
 		layout: computeUpdatePipeline.getBindGroupLayout(0),
 		entries: [
 			{ binding: 0, resource: { buffer: uSceneInfoBuffer } },
 			{ binding: 1, resource: { buffer: uSimOptionsBuffer } },
+			{ binding: 2, resource: { buffer: uDebugInputBuffer } },
 		],
 	});
 
@@ -301,10 +316,9 @@ async function init(canvas: HTMLCanvasElement) {
 		label: "slime mold::bindgroup::compute::1",
 		layout: computeUpdatePipeline.getBindGroupLayout(1),
 		entries: [
-			{ binding: 2, resource: { buffer: sAgentsBuffer } },
-			{ binding: 3, resource: agentsTexture.createView() },
-			{ binding: 4, resource: dummyTexture.createView() },
-			{ binding: 5, resource: trailTexture.createView() },
+			{ binding: 0, resource: { buffer: sAgentsBuffer } },
+			{ binding: 1, resource: agentsTexture.createView() },
+			{ binding: 2, resource: trailTexture.createView() },
 		],
 	});
 
@@ -312,10 +326,9 @@ async function init(canvas: HTMLCanvasElement) {
 		label: "slime mold::bindgroup::compute::2",
 		layout: computeUpdatePipeline.getBindGroupLayout(1),
 		entries: [
-			{ binding: 2, resource: { buffer: sAgentsBuffer } },
-			{ binding: 3, resource: dummyTexture.createView() },
-			{ binding: 4, resource: agentsTexture.createView() },
-			{ binding: 5, resource: trailTexture.createView() },
+			{ binding: 0, resource: { buffer: sAgentsBuffer } },
+			{ binding: 1, resource: trailTexture.createView() },
+			{ binding: 2, resource: agentsTexture.createView() },
 		],
 	});
 
@@ -329,6 +342,8 @@ async function init(canvas: HTMLCanvasElement) {
 		],
 	});
 
+
+
 	const renderPassDescriptor = {
 		label: "basic canvas renderPass",
 		colorAttachments: [{
@@ -341,9 +356,12 @@ async function init(canvas: HTMLCanvasElement) {
 		}],
 	} satisfies GPURenderPassDescriptor;
 
+
 	let then = 0;
-	function render(now: number) {
-		now *= 0.001;
+	let renderCount = 0; // for debouncing debug logs...
+	async function render(now: number) {
+		renderCount += 1 % 60000;
+		now *= 0.001; // ms -> secs
 		const deltaTime = now - then;
 		then = now;
 		const fpsCounter = document.querySelector("#fps-counter");
@@ -353,27 +371,31 @@ async function init(canvas: HTMLCanvasElement) {
 
 		uSceneInfoValues.set([now, deltaTime]);
 		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
-		uSimOptionsViews.diffuseSpeed.set([simOptions.diffuseSpeed]);
-		uSimOptionsViews.evaporateSpeed.set([simOptions.evaporateSpeed]);
-		uSimOptionsViews.moveSpeed.set([simOptions.moveSpeed]);
-		uSimOptionsViews.numAgents.set([simOptions.numAgents]);
+
+		// iterate all entries of shaderOptions into typedarray, then write to buffer
+		Object.entries(shaderOptions).forEach(([k, v]) => {
+			const key = k as keyof typeof shaderOptions;
+			uSimOptionsViews[key].set([v]);
+		});
+
 		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
-		const encoder = device!.createCommandEncoder({ label: "slime mold encoder" });
+		const encoder = device!.createCommandEncoder({ label: "slime mold::encoder" });
 
 		let computePass = encoder.beginComputePass();
 		computePass.setPipeline(computeUpdatePipeline);
 		computePass.setBindGroup(0, computeBindGroup0);
 		computePass.setBindGroup(1, computeBindGroup1);
-		computePass.dispatchWorkgroups(simOptions.numAgents);
+		computePass.dispatchWorkgroups(shaderOptions.numAgents);
 		computePass.end();
 
 		computePass = encoder.beginComputePass();
 		computePass.setPipeline(computeProcessPipeline);
 		computePass.setBindGroup(0, computeBindGroup0);
 		computePass.setBindGroup(1, computeBindGroup2);
-		computePass.dispatchWorkgroups(textureWidth, textureHeight);
+		computePass.dispatchWorkgroups(options.texWidth, options.texHeight);
 		computePass.end();
+
 
 		renderPassDescriptor.colorAttachments[0].view =
 			context!.getCurrentTexture().createView();
@@ -385,14 +407,30 @@ async function init(canvas: HTMLCanvasElement) {
 		renderPass.draw(6);
 		renderPass.end();
 
+
+		encoder.copyBufferToBuffer(
+			uDebugInputBuffer, 0,
+			uDebugOutputBuffer, 0,
+			uDebugOutputBuffer.size
+		);
 		encoder.copyTextureToTexture(
 			{ texture: trailTexture },
 			{ texture: agentsTexture },
-			[textureWidth, textureHeight, 1],
+			[options.texWidth, options.texHeight, 1],
 		);
 
 		const commandBuffer = encoder.finish();
 		device!.queue.submit([commandBuffer]);
+
+		// console.log debug buffer values
+		if (options.debug && renderCount % 420 == 2) {
+			await uDebugOutputBuffer.mapAsync(GPUMapMode.READ);
+			const res = new Float32Array(uDebugOutputBuffer.getMappedRange());
+			console.log(res);
+
+			uDebugOutputBuffer.unmap();
+		}
+
 
 		requestAnimationFrame(render);
 	}
@@ -402,6 +440,6 @@ async function init(canvas: HTMLCanvasElement) {
 
 export default createGPUSampleSection({
 	title: "06_slime_molds",
-	description: "This one is probably beyond me at the moment.",
+	description: "Slime mold simulation, compute shader experiments.",
 	initFn: init,
 });

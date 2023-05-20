@@ -5,11 +5,16 @@ struct SceneInfo {
 	deltaTime: f32,
 };
 
+// ALPHABETICALLY ORDERED
 struct SimOptions {
 	diffuseSpeed: f32,
 	evaporateSpeed: f32,
 	moveSpeed: f32,
 	numAgents: u32,
+	sensorAngle: f32,
+	sensorDst: f32,
+	sensorSize: u32,
+	turnSpeed: f32,
 };
 
 struct Agent {
@@ -36,12 +41,34 @@ fn normHash(s: u32) -> f32 {
 
 @group(0) @binding(0) var<uniform> info: SceneInfo;
 @group(0) @binding(1) var<uniform> options: SimOptions; // uniform vs storage?
-@group(1) @binding(2) var<storage, read_write> agents: array<Agent>;
-// TODO: should probably change my agentMap to be a different texture format,
-// since I'm only using one channel...
-@group(1) @binding(3) var agentTex: texture_storage_2d<rgba8unorm, write>;
-@group(1) @binding(4) var inputTex: texture_2d<f32>;
-@group(1) @binding(5) var outputTex: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(2) var<storage, read_write> debug: array<f32, 6>;
+
+@group(1) @binding(0) var<storage, read_write> agents: array<Agent>;
+@group(1) @binding(1) var writeTex: texture_storage_2d<rgba8unorm, write>;
+@group(1) @binding(2) var readTex: texture_2d<f32>;
+
+// add up each trail texel within bounds of agent sensor
+fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
+	var tDims = vec2f(textureDimensions(writeTex));
+	let sensorAngle = agent.angle + sensorAngleOffset;
+	let sensorDir = vec2f(cos(sensorAngle), sin(sensorAngle));
+	let sensorCenter = vec2f(agent.pos + sensorDir * options.sensorDst);
+
+	var sum = 0.0;
+	var iSize = i32(options.sensorSize);
+	for (var xoff = -iSize; xoff <= iSize; xoff++) {
+		for (var yoff = -iSize; yoff <= iSize; yoff++) {
+			var pos = sensorCenter + vec2(f32(xoff), f32(yoff));
+
+			if (pos.x >= 0 && pos.x < tDims.x && pos.y >= 0 && pos.y < tDims.y) {
+				var t = textureLoad(readTex, vec2i(pos), 0);
+				sum += t.x;
+			}
+		}
+	}
+
+	return vec3(sum, sensorCenter);
+}
 
 // todo: experiment with workgroup_size & possibly chunking...
 @compute @workgroup_size(64) fn update_agents(
@@ -51,41 +78,72 @@ fn normHash(s: u32) -> f32 {
 		return;
 	}
 
-	let tDims = vec2f(textureDimensions(agentTex));
+	let tDims = textureDimensions(readTex);
 
 	var agent = agents[giid.x];
 	let prn = normHash(hash(
-		u32(agent.pos.y * tDims.x + agent.pos.x) + hash(giid.x)
+		u32(agent.pos.y * f32(tDims.x) + agent.pos.x) + hash(giid.x)
 	));
 
+	// pick a direction (w some random variance)
+	// based on trail density at 3 possible points in front of agent.
+	let senseFwd = sense(agent, 0);
+	let senseLeft = sense(agent, options.sensorAngle);
+	let senseRight = sense(agent, -options.sensorAngle);
+
+	let weightFwd = senseFwd.x;
+	let weightLeft = senseLeft.x;
+	let weightRight = senseRight.x;
+
+	var angle = 0.0;
+	// continue in same dir
+	if (weightFwd > weightLeft && weightFwd > weightRight) {
+		angle = 0;
+	}
+	// turn randomly
+	if (weightFwd < weightLeft && weightFwd < weightRight) {
+		angle = (prn - 0.5) * 2 * options.turnSpeed * info.deltaTime;
+	}
+	// turn left
+	else if (weightLeft > weightRight) {
+		angle = prn * options.turnSpeed * info.deltaTime;
+	}
+	// turn right
+	else if (weightRight > weightLeft) {
+		angle = -prn * options.turnSpeed * info.deltaTime;
+	}
+
+		agents[giid.x].angle += angle;
+
 	// move agent based on direction and speed
-	let dir = vec2f(sin(agent.angle), cos(agent.angle));
+	let dir = vec2f(sin(agents[giid.x].angle), cos(agents[giid.x].angle));
 	var newPos = agent.pos + dir * options.moveSpeed * info.deltaTime;
 
 	// pick a new, random angle if hit a boundary
-	// ! FIXME: agents are getting stuck on edges
-	if (newPos.x < 0 || newPos.x >= tDims.x
-	|| newPos.y < 0 || newPos.y >= tDims.y) {
-		newPos.x = clamp(newPos.x, 0, tDims.x);
-		newPos.y = clamp(newPos.y, 0, tDims.y);
+	if (newPos.x < 0 || newPos.x >= f32(tDims.x)
+	|| newPos.y < 0 || newPos.y >= f32(tDims.y)) {
+		newPos.x = clamp(newPos.x, 0, f32(tDims.x));
+		newPos.y = clamp(newPos.y, 0, f32(tDims.y));
+		// I shouldn't have to add & modulo, but if I just assign directly
+		// to prn*2*PI, they get stuck! Not sure why.
 		agents[giid.x].angle += (prn * 2 * PI) % (2 * PI);
 	}
 
 	agents[giid.x].pos = newPos;
-	textureStore(agentTex, vec2u(agents[giid.x].pos), vec4f(.8));
+	textureStore(writeTex, vec2u(agents[giid.x].pos), vec4f(.8));
 }
 
 @compute @workgroup_size(16) fn process_trailmap(
 	@builtin(global_invocation_id) giid: vec3<u32>,
 ) {
-	let tDims = textureDimensions(inputTex);
+	let tDims = textureDimensions(readTex);
 
 	if (giid.x < 0 || giid.x >= tDims.x || giid.y < 0 || giid.y >= tDims.y) {
 		return;
 	}
 
 	let inputValue = textureLoad(
-		inputTex,
+		readTex,
 		giid.xy,
 		0
 	);
@@ -101,7 +159,7 @@ fn normHash(s: u32) -> f32 {
 					&& ysample >= 0 && ysample < i32(tDims.y)) 
 			{
 				sum += textureLoad(
-					inputTex,
+					readTex,
 					vec2i(xsample, ysample),
 					0
 				);
@@ -123,7 +181,7 @@ fn normHash(s: u32) -> f32 {
 	);
 
 	textureStore(
-		outputTex,
+		writeTex,
 		giid.xy,
 		evaporatedValue
 	);
