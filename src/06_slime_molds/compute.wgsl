@@ -113,10 +113,10 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 		angle = -prn * options.turnSpeed * info.deltaTime;
 	}
 
-		agents[giid.x].angle += angle;
+	agents[giid.x].angle += angle;
 
 	// move agent based on direction and speed
-	let dir = vec2f(sin(agents[giid.x].angle), cos(agents[giid.x].angle));
+	let dir = vec2f(cos(agents[giid.x].angle), sin(agents[giid.x].angle));
 	var newPos = agent.pos + dir * options.moveSpeed * info.deltaTime;
 
 	// pick a new, random angle if hit a boundary
@@ -130,7 +130,7 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	}
 
 	agents[giid.x].pos = newPos;
-	textureStore(writeTex, vec2u(agents[giid.x].pos), vec4f(.8));
+	textureStore(writeTex, vec2u(agents[giid.x].pos), vec4f(.85));
 }
 
 @compute @workgroup_size(16) fn process_trailmap(

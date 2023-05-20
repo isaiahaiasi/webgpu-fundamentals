@@ -8,28 +8,41 @@ import computeShaderCode from "./compute.wgsl?raw";
 const options = {
 	includeBg: false,
 	debug: false,
-	texWidth: 320,
-	texHeight: 180,
+	texWidth: 2048,
+	texHeight: 1024,
 };
 
 const shaderOptions = {
-	numAgents: 250,
-	evaporateSpeed: 0.2,
-	diffuseSpeed: 8,
-	moveSpeed: 20,
-	sensorAngle: 20 * (Math.PI / 180), // radian angle of left/right sensors
-	sensorDst: 3,
-	sensorSize: 3, // square radius around sensor center
-	turnSpeed: 1,
+	numAgents: 60000,
+	evaporateSpeed: .1,
+	diffuseSpeed: 90,
+	moveSpeed: 30,
+	sensorAngle: 30 * (Math.PI / 180), // radian angle of left/right sensors
+	sensorDst: 20,
+	sensorSize: 6, // square radius around sensor center
+	turnSpeed: 15,
+};
+
+const POSITION = {
+	center: () => [options.texWidth / 2, options.texHeight / 2],
+	field: () => [
+		Math.random() * options.texWidth,
+		Math.random() * options.texHeight,
+	],
+	subField: (pct: number = 3) => [
+		(options.texWidth / pct) + Math.random() * options.texWidth * (pct - 2) / pct,
+		(options.texHeight / pct) + Math.random() * options.texHeight * (pct - 2) / pct,
+	],
+};
+
+const DIRECTION = {
+	random: () => Math.random() * Math.PI * 2,
 };
 
 function getSpawnPosition() {
-	const cx = options.texWidth / 2;
-	const cy = options.texHeight / 2;
 	return [
-		cx,
-		cy,
-		Math.random() * Math.PI * 2,
+		...POSITION.subField(5),
+		DIRECTION.random(),
 		0,
 	];
 }
