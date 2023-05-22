@@ -8,20 +8,27 @@ import computeShaderCode from "./compute.wgsl?raw";
 const options = {
 	includeBg: false,
 	debug: false,
-	texWidth: 2048,
-	texHeight: 1024,
+	texWidth: 256,
+	texHeight: 128,
 };
 
 const shaderOptions = {
-	numAgents: 600, // TODO: specify num "dimensions"
-	evaporateSpeed: .12,
-	// evaporateWeight: [],
-	diffuseSpeed: 80,
+	numAgents: 10, // TODO: specify num "dimensions"?
+	evaporateSpeed: 2,
+	evaporateWeight: [0.3, 0.2, 0.1, 1],
+	diffuseSpeed: 50,
 	moveSpeed: 20,
 	sensorAngle: 30 * (Math.PI / 180), // radian angle of left/right sensors
 	sensorDst: 55,
 	sensorSize: 2, // square radius around sensor center
 	turnSpeed: 5,
+};
+
+const textureOptions: GPUSamplerDescriptor = {
+	addressModeU: "clamp-to-edge",
+	addressModeV: "clamp-to-edge",
+	magFilter: "nearest",
+	minFilter: "nearest",
 };
 
 const POSITION = {
@@ -82,12 +89,7 @@ async function init(canvas: HTMLCanvasElement) {
 		code: renderShaderCode,
 	});
 
-	const sampler = device.createSampler({
-		addressModeU: "clamp-to-edge",
-		addressModeV: "clamp-to-edge",
-		magFilter: "linear",
-		minFilter: "linear",
-	});
+	const sampler = device.createSampler(textureOptions);
 
 	// * TEXTURES
 
@@ -183,16 +185,17 @@ async function init(canvas: HTMLCanvasElement) {
 
 	// Uniform - SimOptions
 	// MUST BE IN ALPHABETICAL ORDER TO MATCH WGSL STRUCT!
-	const uSimOptionsValues = new ArrayBuffer(32);
+	const uSimOptionsValues = new ArrayBuffer(64);
 	const uSimOptionsViews = {
 		diffuseSpeed: new Float32Array(uSimOptionsValues, 0, 1),
 		evaporateSpeed: new Float32Array(uSimOptionsValues, 4, 1),
-		moveSpeed: new Float32Array(uSimOptionsValues, 8, 1),
-		numAgents: new Uint32Array(uSimOptionsValues, 12, 1),
-		sensorAngle: new Float32Array(uSimOptionsValues, 16, 1),
-		sensorDst: new Float32Array(uSimOptionsValues, 20, 1),
-		sensorSize: new Uint32Array(uSimOptionsValues, 24, 1),
-		turnSpeed: new Float32Array(uSimOptionsValues, 28, 1),
+		evaporateWeight: new Float32Array(uSimOptionsValues, 16, 4),
+		moveSpeed: new Float32Array(uSimOptionsValues, 32, 1),
+		numAgents: new Uint32Array(uSimOptionsValues, 36, 1),
+		sensorAngle: new Float32Array(uSimOptionsValues, 40, 1),
+		sensorDst: new Float32Array(uSimOptionsValues, 44, 1),
+		sensorSize: new Uint32Array(uSimOptionsValues, 48, 1),
+		turnSpeed: new Float32Array(uSimOptionsValues, 52, 1),
 	};
 
 
@@ -392,9 +395,8 @@ async function init(canvas: HTMLCanvasElement) {
 		// iterate all entries of shaderOptions into typedarray, then write to buffer
 		Object.entries(shaderOptions).forEach(([k, v]) => {
 			const key = k as keyof typeof shaderOptions;
-			uSimOptionsViews[key].set([v]);
+			uSimOptionsViews[key].set(Array.isArray(v) ? v : [v]);
 		});
-
 		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
 		const encoder = device!.createCommandEncoder({ label: "slime mold::encoder" });

@@ -9,6 +9,7 @@ struct SceneInfo {
 struct SimOptions {
 	diffuseSpeed: f32,
 	evaporateSpeed: f32,
+	evaporateWeight: vec4f,
 	moveSpeed: f32,
 	numAgents: u32,
 	sensorAngle: f32,
@@ -131,7 +132,7 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	}
 
 	agents[_id].pos = newPos;
-	textureStore(writeTex, vec2u(newPos), vec4f(.85));
+	textureStore(writeTex, vec2u(newPos), vec4f(1));
 }
 
 @compute @workgroup_size(16) fn process_trailmap(
@@ -172,14 +173,13 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	let diffusedValue = mix(
 		inputValue,
 		blurResult,
-		options.diffuseSpeed * info.deltaTime
+		min(.999, options.diffuseSpeed * info.deltaTime)
 	);
 
 	// Make the diffused trail also "evaporate" (fade out) over time
-	let colWeight = vec4f(0.2, 0.1, 0, 0);
 	let evaporatedValue = max(
 		vec4f(0),
-		diffusedValue - colWeight * info.deltaTime - options.evaporateSpeed * info.deltaTime,
+		diffusedValue - options.evaporateWeight * options.evaporateSpeed * info.deltaTime,
 	);
 
 	textureStore(
