@@ -53,13 +53,11 @@ export default class AgentGenerator {
 	}
 
 	getAgents(
-		agentCounts: [number, number, number],
+		numAgents: number,
 		positionFn: PosMethod,
 		directionFn: DirMethod,
 	) {
-		const agentCount = agentCounts.reduce((acc, n) => n * acc);
-
-		return new Array(agentCount)
+		return new Array(numAgents)
 			.fill(0)
 			.map(() => this.createSpawnData(positionFn, directionFn))
 			.flat();

@@ -1,35 +1,41 @@
 import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
 import { getGPUDevice } from "../utils/wgpu-utils";
+import AgentGenerator from "./AgentGenerator";
 
 import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
-import AgentGenerator from "./AgentGenerator";
 
 const options = {
 	includeBg: false,
 	debug: false,
-	texWidth: 512,
-	texHeight: 256,
+	texWidth: 2048,
+	texHeight: 1024,
 };
 
-const shaderOptions = {
-	numAgents: 600, // TODO: change to vec3
-	evaporateSpeed: 1,
-	evaporateWeight: [0.4, 0.2, 0.1, 1],
+const shaderOptions: SlimeShaderOptions = {
+	agentCounts: [100, 100, 20],
+	evaporateSpeed: 1.35,
+	evaporateWeight: [0.4, 0.2, 0.15, 1],
 	diffuseSpeed: 50,
-	moveSpeed: 25,
-	sensorAngle: 10 * (Math.PI / 180), // radian angle of left/right sensors
-	sensorDst: 5,
-	sensorSize: 3, // square radius around sensor center
-	turnSpeed: 20,
+	moveSpeed: 80,
+	sensorAngle: 25 * (Math.PI / 180), // radian angle of left/right sensors
+	sensorDst: 30,
+	sensorSize: 1, // square radius around sensor center
+	turnSpeed: 10,
 };
+
+function totalAgentCount() {
+	return shaderOptions.agentCounts[0]
+		* shaderOptions.agentCounts[1]
+		* shaderOptions.agentCounts[2];
+}
 
 const agentGenerator = new AgentGenerator(options);
 const agents = agentGenerator.getAgents(
-	[shaderOptions.numAgents, shaderOptions.numAgents, 1],
-	agentGenerator.pos.filledCircle,
-	agentGenerator.dir.fromCenter,
+	totalAgentCount(),
+	agentGenerator.pos.field,
+	agentGenerator.dir.toCenter,
 );
 
 const textureOptions: GPUSamplerDescriptor = {
@@ -166,17 +172,17 @@ async function init(canvas: HTMLCanvasElement) {
 
 	// Uniform - SimOptions
 	// MUST BE IN ALPHABETICAL ORDER TO MATCH WGSL STRUCT!
-	const uSimOptionsValues = new ArrayBuffer(64);
+	const uSimOptionsValues = new ArrayBuffer(80);
 	const uSimOptionsViews = {
 		diffuseSpeed: new Float32Array(uSimOptionsValues, 0, 1),
 		evaporateSpeed: new Float32Array(uSimOptionsValues, 4, 1),
 		evaporateWeight: new Float32Array(uSimOptionsValues, 16, 4),
 		moveSpeed: new Float32Array(uSimOptionsValues, 32, 1),
-		numAgents: new Uint32Array(uSimOptionsValues, 36, 1),
-		sensorAngle: new Float32Array(uSimOptionsValues, 40, 1),
-		sensorDst: new Float32Array(uSimOptionsValues, 44, 1),
-		sensorSize: new Uint32Array(uSimOptionsValues, 48, 1),
-		turnSpeed: new Float32Array(uSimOptionsValues, 52, 1),
+		agentCounts: new Uint32Array(uSimOptionsValues, 48, 3),
+		sensorAngle: new Float32Array(uSimOptionsValues, 60, 1),
+		sensorDst: new Float32Array(uSimOptionsValues, 64, 1),
+		sensorSize: new Uint32Array(uSimOptionsValues, 68, 1),
+		turnSpeed: new Float32Array(uSimOptionsValues, 72, 1),
 	};
 
 
@@ -205,7 +211,7 @@ async function init(canvas: HTMLCanvasElement) {
 
 
 	// Storage - Agents
-	const sAgentsBufferSize = 16 * shaderOptions.numAgents * shaderOptions.numAgents; // 3f32
+	const sAgentsBufferSize = 16 * totalAgentCount(); // 3f32
 	const sAgentsBuffer = device.createBuffer({
 		size: sAgentsBufferSize,
 		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -374,6 +380,7 @@ async function init(canvas: HTMLCanvasElement) {
 			const key = k as keyof typeof shaderOptions;
 			uSimOptionsViews[key].set(Array.isArray(v) ? v : [v]);
 		});
+
 		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
 		const encoder = device!.createCommandEncoder({ label: "slime mold::encoder" });
@@ -382,7 +389,7 @@ async function init(canvas: HTMLCanvasElement) {
 		computePass.setPipeline(computeUpdatePipeline);
 		computePass.setBindGroup(0, computeBindGroup0);
 		computePass.setBindGroup(1, computeBindGroup1);
-		computePass.dispatchWorkgroups(shaderOptions.numAgents, shaderOptions.numAgents);
+		computePass.dispatchWorkgroups(...shaderOptions.agentCounts);
 		computePass.end();
 
 		computePass = encoder.beginComputePass();

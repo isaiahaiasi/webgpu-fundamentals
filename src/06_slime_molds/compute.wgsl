@@ -11,7 +11,7 @@ struct SimOptions {
 	evaporateSpeed: f32,
 	evaporateWeight: vec4f,
 	moveSpeed: f32,
-	numAgents: u32,
+	agentCounts: vec3u,
 	sensorAngle: f32,
 	sensorDst: f32,
 	sensorSize: u32,
@@ -71,16 +71,19 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	return vec3(sum, sensorCenter);
 }
 
-// todo: experiment with workgroup_size & possibly chunking...
-@compute @workgroup_size(8, 8) fn update_agents(
+@compute @workgroup_size(1) fn update_agents(
 	@builtin(global_invocation_id) giid: vec3<u32>,
 ) {
-	if (giid.x < 0 || giid.x >= options.numAgents || giid.y < 0 || giid.y >= options.numAgents) {
+	if (giid.x < 0 || giid.x >= options.agentCounts.x
+		|| giid.y < 0 || giid.y >= options.agentCounts.y
+		|| giid.z < 0 || giid.z >= options.agentCounts.z) {
 		return;
 	}
 
 	let tDims = textureDimensions(readTex);
-	let _id = giid.x + giid.y * options.numAgents;
+	let _id = giid.x 
+		+ giid.y * options.agentCounts.x 
+		+ giid.z * options.agentCounts.x * options.agentCounts.y;
 
 	var agent = agents[_id];
 	let prn = normHash(hash(
@@ -151,6 +154,7 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	);
 
 	// Diffuse (blur) the trail by averaging the 3x3 block around current pixel
+	// TODO: more efficient blur algo?
 	var sum = vec4f(0);
 	for (var xoff = -1; xoff <= 1; xoff++) {
 		for (var yoff = -1; yoff <= 1; yoff++) {

@@ -1,5 +1,5 @@
 interface SlimeShaderOptions {
-	numAgents: number;
+	agentCounts: [number, number, number];
 	evaporateSpeed: number;
 	evaporateWeight: [number, number, number, number];
 	diffuseSpeed: number;
