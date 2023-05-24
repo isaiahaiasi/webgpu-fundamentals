@@ -4,59 +4,40 @@ import { getGPUDevice } from "../utils/wgpu-utils";
 
 import renderShaderCode from "./render.wgsl?raw";
 import computeShaderCode from "./compute.wgsl?raw";
+import AgentGenerator from "./AgentGenerator";
 
 const options = {
 	includeBg: false,
 	debug: false,
-	texWidth: 256,
-	texHeight: 128,
+	texWidth: 512,
+	texHeight: 256,
 };
 
 const shaderOptions = {
-	numAgents: 10, // TODO: specify num "dimensions"?
-	evaporateSpeed: 2,
-	evaporateWeight: [0.3, 0.2, 0.1, 1],
+	numAgents: 600, // TODO: change to vec3
+	evaporateSpeed: 1,
+	evaporateWeight: [0.4, 0.2, 0.1, 1],
 	diffuseSpeed: 50,
-	moveSpeed: 20,
-	sensorAngle: 30 * (Math.PI / 180), // radian angle of left/right sensors
-	sensorDst: 55,
-	sensorSize: 2, // square radius around sensor center
-	turnSpeed: 5,
+	moveSpeed: 25,
+	sensorAngle: 10 * (Math.PI / 180), // radian angle of left/right sensors
+	sensorDst: 5,
+	sensorSize: 3, // square radius around sensor center
+	turnSpeed: 20,
 };
+
+const agentGenerator = new AgentGenerator(options);
+const agents = agentGenerator.getAgents(
+	[shaderOptions.numAgents, shaderOptions.numAgents, 1],
+	agentGenerator.pos.filledCircle,
+	agentGenerator.dir.fromCenter,
+);
 
 const textureOptions: GPUSamplerDescriptor = {
 	addressModeU: "clamp-to-edge",
 	addressModeV: "clamp-to-edge",
-	magFilter: "nearest",
-	minFilter: "nearest",
+	magFilter: "linear",
+	minFilter: "linear",
 };
-
-const POSITION = {
-	// TODO: area of circle
-	// TODO: edge of circle
-	center: () => [options.texWidth / 2, options.texHeight / 2],
-	field: () => [
-		Math.random() * options.texWidth,
-		Math.random() * options.texHeight,
-	],
-	subField: (pct: number = 3) => [
-		(options.texWidth / pct) + Math.random() * options.texWidth * (pct - 2) / pct,
-		(options.texHeight / pct) + Math.random() * options.texHeight * (pct - 2) / pct,
-	],
-};
-
-const DIRECTION = {
-	// TODO: facing center
-	random: () => Math.random() * Math.PI * 2,
-};
-
-function getSpawnPosition() {
-	return [
-		...POSITION.subField(8),
-		DIRECTION.random(),
-		0,
-	];
-}
 
 async function init(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
@@ -229,12 +210,8 @@ async function init(canvas: HTMLCanvasElement) {
 		size: sAgentsBufferSize,
 		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
 	});
-	const sAgentsBufferValues = new Float32Array(
-		new Array(shaderOptions.numAgents * shaderOptions.numAgents)
-			.fill(0)
-			.map(getSpawnPosition)
-			.flat()
-	);
+
+	const sAgentsBufferValues = new Float32Array(agents);
 	device.queue.writeBuffer(sAgentsBuffer, 0, sAgentsBufferValues);
 
 	// * BIND GROUP LAYOUTS
