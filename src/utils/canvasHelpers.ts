@@ -14,6 +14,7 @@ interface CanvasDisplayOptions {
 	maxSize: number;
 	width?: number;
 	height?: number;
+	onClick?: EventListener;
 }
 
 const defaultCanvasDisplayOptions: CanvasDisplayOptions = {
@@ -34,6 +35,7 @@ export function setCanvasDisplayOptions(
 		width,
 		height,
 		maxSize,
+		onClick,
 	} = { ...defaultCanvasDisplayOptions, ...options };
 	canvas.style.imageRendering = imageRendering;
 
@@ -42,6 +44,10 @@ export function setCanvasDisplayOptions(
 	}
 	if (!height) {
 		height = canvas.clientHeight;
+	}
+
+	if (onClick) {
+		canvas.addEventListener("click", onClick);
 	}
 
 	const devicePixelRatio = (useDevicePixelRatio && window.devicePixelRatio) || 1;

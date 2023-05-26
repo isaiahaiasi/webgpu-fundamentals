@@ -1,3 +1,8 @@
+type Time = {
+	now: DOMHighResTimeStamp;
+	deltaTime: number;
+}
+
 export function fail(txt: string) {
 	console.log(txt);
 	// Emit an event that could update the UI when there's a failure?
@@ -26,4 +31,20 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	});
 
 	return device;
+}
+
+export function handleRenderLoop(renderCB: (time: Time) => void) {
+	const time: Time = {
+		now: 0,
+		deltaTime: 0,
+	};
+
+	async function render(now: number) {
+		time.deltaTime = (now - time.now) * .001; // ms -> s
+		time.now = now;
+		renderCB(time);
+		requestAnimationFrame(render);
+	}
+
+	requestAnimationFrame(render);
 }

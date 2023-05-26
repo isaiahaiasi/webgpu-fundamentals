@@ -2,7 +2,7 @@ import Stats from 'stats.js';
 
 import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
-import { getGPUDevice } from "../utils/wgpu-utils";
+import { getGPUDevice, handleRenderLoop } from "../utils/wgpu-utils";
 import AgentGenerator from "./AgentGenerator";
 
 import renderShaderCode from "./render.wgsl?raw";
@@ -14,10 +14,11 @@ const options = {
 	showStats: true,
 	texWidth: 1024,
 	texHeight: 512,
+	isPaused: false,
 };
 
 const shaderOptions: SlimeShaderOptions = {
-	agentCounts: [100, 10, 1],
+	agentCounts: [100, 100, 1],
 	evaporateSpeed: 1.35,
 	evaporateWeight: [0.4, 0.2, 0.15, 1],
 	diffuseSpeed: 50,
@@ -60,7 +61,8 @@ async function init(canvas: HTMLCanvasElement) {
 	}
 
 	setCanvasDisplayOptions(canvas, {
-		imageRendering: "auto"
+		imageRendering: "auto",
+		onClick: () => options.isPaused = !options.isPaused,
 	});
 
 	const stats = new Stats();
@@ -370,16 +372,18 @@ async function init(canvas: HTMLCanvasElement) {
 	} satisfies GPURenderPassDescriptor;
 
 
-	let then = 0;
 	let renderCount = 0; // for debouncing debug logs...
-	async function render(now: number) {
-		stats.update();
-		renderCount += 1 % 60000;
-		now *= 0.001; // ms -> secs
-		const deltaTime = now - then;
-		then = now;
 
-		uSceneInfoValues.set([now, deltaTime]);
+	handleRenderLoop(async (time) => {
+		stats.update();
+
+		if (options.isPaused) {
+			return;
+		}
+
+		renderCount += 1 % 60000;
+
+		uSceneInfoValues.set([time.now, time.deltaTime]);
 		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
 
 		// iterate all entries of shaderOptions into typedarray, then write to buffer
@@ -440,11 +444,7 @@ async function init(canvas: HTMLCanvasElement) {
 
 			uDebugOutputBuffer.unmap();
 		}
-
-		requestAnimationFrame(render);
-	}
-
-	requestAnimationFrame(render);
+	});
 }
 
 export default createGPUSampleSection({
