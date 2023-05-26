@@ -10,11 +10,14 @@ export function createGPUSampleSection({
 	const section = document.createElement("section");
 	const titleElm = document.createElement("h2");
 	const descElm = document.createElement("p");
+	const canvasContainer = document.createElement("div");
 	const canvas = document.createElement("canvas");
 	canvas.classList.add("gpu-example");
+	canvasContainer.classList.add("canvas-container");
 	section.appendChild(titleElm);
 	section.appendChild(descElm);
-	section.appendChild(canvas);
+	section.appendChild(canvasContainer);
+	canvasContainer.appendChild(canvas);
 	titleElm.textContent = title;
 	descElm.textContent = description;
 	initFn(canvas);

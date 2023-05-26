@@ -1,3 +1,5 @@
+import Stats from 'stats.js';
+
 import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
 import { getGPUDevice } from "../utils/wgpu-utils";
@@ -9,19 +11,20 @@ import computeShaderCode from "./compute.wgsl?raw";
 const options = {
 	includeBg: false,
 	debug: false,
-	texWidth: 2048,
-	texHeight: 1024,
+	showStats: true,
+	texWidth: 1024,
+	texHeight: 512,
 };
 
 const shaderOptions: SlimeShaderOptions = {
-	agentCounts: [100, 100, 20],
+	agentCounts: [100, 10, 1],
 	evaporateSpeed: 1.35,
 	evaporateWeight: [0.4, 0.2, 0.15, 1],
 	diffuseSpeed: 50,
 	moveSpeed: 80,
 	sensorAngle: 25 * (Math.PI / 180), // radian angle of left/right sensors
 	sensorDst: 30,
-	sensorSize: 1, // square radius around sensor center
+	sensorSize: 2, // square radius around sensor center
 	turnSpeed: 10,
 };
 
@@ -34,8 +37,8 @@ function totalAgentCount() {
 const agentGenerator = new AgentGenerator(options);
 const agents = agentGenerator.getAgents(
 	totalAgentCount(),
-	agentGenerator.pos.field,
-	agentGenerator.dir.toCenter,
+	agentGenerator.pos.filledCircle,
+	agentGenerator.dir.fromCenter,
 );
 
 const textureOptions: GPUSamplerDescriptor = {
@@ -59,6 +62,13 @@ async function init(canvas: HTMLCanvasElement) {
 	setCanvasDisplayOptions(canvas, {
 		imageRendering: "auto"
 	});
+
+	const stats = new Stats();
+	if (options.showStats) {
+		stats.showPanel(0);
+		stats.dom.style.position = "absolute";
+		canvas.parentElement?.appendChild(stats.dom);
+	}
 
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({
@@ -363,14 +373,11 @@ async function init(canvas: HTMLCanvasElement) {
 	let then = 0;
 	let renderCount = 0; // for debouncing debug logs...
 	async function render(now: number) {
+		stats.update();
 		renderCount += 1 % 60000;
 		now *= 0.001; // ms -> secs
 		const deltaTime = now - then;
 		then = now;
-		const fpsCounter = document.querySelector("#fps-counter");
-		if (fpsCounter) {
-			fpsCounter.textContent = "time: " + deltaTime;
-		}
 
 		uSceneInfoValues.set([now, deltaTime]);
 		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
@@ -433,7 +440,6 @@ async function init(canvas: HTMLCanvasElement) {
 
 			uDebugOutputBuffer.unmap();
 		}
-
 
 		requestAnimationFrame(render);
 	}

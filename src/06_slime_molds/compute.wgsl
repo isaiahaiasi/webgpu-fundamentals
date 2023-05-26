@@ -56,14 +56,14 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	let sensorCenter = vec2f(agent.pos + sensorDir * options.sensorDst);
 
 	var sum = 0.0;
-	var iSize = i32(options.sensorSize);
-	for (var xoff = -iSize; xoff <= iSize; xoff++) {
-		for (var yoff = -iSize; yoff <= iSize; yoff++) {
-			var pos = sensorCenter + vec2(f32(xoff), f32(yoff));
+	var iSize = f32(options.sensorSize);
+	for (var xoff = -iSize; xoff <= iSize; xoff += 1) {
+		for (var yoff = -iSize; yoff <= iSize; yoff += 1) {
+			var pos = sensorCenter + vec2(xoff, yoff);
 
 			if (pos.x >= 0 && pos.x < tDims.x && pos.y >= 0 && pos.y < tDims.y) {
 				var t = textureLoad(readTex, vec2i(pos), 0);
-				sum += t.x;
+				sum += t.r + t.g + t.b;
 			}
 		}
 	}
@@ -81,13 +81,15 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	}
 
 	let tDims = textureDimensions(readTex);
+	let fTDims = vec2f(tDims);
+
 	let _id = giid.x 
 		+ giid.y * options.agentCounts.x 
 		+ giid.z * options.agentCounts.x * options.agentCounts.y;
 
 	var agent = agents[_id];
 	let prn = normHash(hash(
-		u32(agent.pos.y * f32(tDims.x) + agent.pos.x) + hash(_id)
+		u32(agent.pos.y * fTDims.x + agent.pos.x) + hash(_id)
 	));
 
 	// pick a direction (w some random variance)
@@ -125,10 +127,10 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	var newPos = agent.pos + dir * options.moveSpeed * info.deltaTime;
 
 	// pick a new, random angle if hit a boundary
-	if (newPos.x < 0 || newPos.x >= f32(tDims.x)
-	|| newPos.y < 0 || newPos.y >= f32(tDims.y)) {
-		newPos.x = clamp(newPos.x, 0, f32(tDims.x));
-		newPos.y = clamp(newPos.y, 0, f32(tDims.y));
+	if (newPos.x < 0 || newPos.x >= fTDims.x)
+	|| newPos.y < 0 || newPos.y >= fTDims.y {
+		newPos.x = clamp(newPos.x, 0, fTDims.x);
+		newPos.y = clamp(newPos.y, 0, fTDims.y);
 		// I shouldn't have to add & modulo, but if I just assign directly
 		// to prn*2*PI, they get stuck! Not sure why.
 		agents[_id].angle += (prn * 2 * PI) % (2 * PI);
@@ -154,7 +156,6 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	);
 
 	// Diffuse (blur) the trail by averaging the 3x3 block around current pixel
-	// TODO: more efficient blur algo?
 	var sum = vec4f(0);
 	for (var xoff = -1; xoff <= 1; xoff++) {
 		for (var yoff = -1; yoff <= 1; yoff++) {
