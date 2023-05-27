@@ -1,4 +1,5 @@
 import Stats from 'stats.js';
+import dat from 'dat.gui';
 
 import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
@@ -12,21 +13,21 @@ const options = {
 	includeBg: false,
 	debug: false,
 	showStats: true,
-	texWidth: 1024,
-	texHeight: 512,
+	texWidth: 2048,
+	texHeight: 1024,
 	isPaused: false,
 };
 
 const shaderOptions: SlimeShaderOptions = {
-	agentCounts: [100, 100, 1],
-	evaporateSpeed: 1.35,
+	agentCounts: [1000, 100, 1],
+	evaporateSpeed: 1.4,
 	evaporateWeight: [0.4, 0.2, 0.15, 1],
 	diffuseSpeed: 50,
 	moveSpeed: 80,
 	sensorAngle: 25 * (Math.PI / 180), // radian angle of left/right sensors
-	sensorDst: 30,
+	sensorDst: 10,
 	sensorSize: 2, // square radius around sensor center
-	turnSpeed: 10,
+	turnSpeed: 20,
 };
 
 function totalAgentCount() {
@@ -71,6 +72,20 @@ async function init(canvas: HTMLCanvasElement) {
 		stats.dom.style.position = "absolute";
 		canvas.parentElement?.appendChild(stats.dom);
 	}
+
+	const gui = new dat.GUI({ name: "slime mold::gui" });
+	canvas.parentElement?.appendChild(gui.domElement);
+	gui.domElement.style.position = "absolute";
+	gui.domElement.style.top = "0";
+	gui.domElement.style.right = "0";
+	gui.add(shaderOptions, "evaporateSpeed", 0, 15, .1);
+	gui.add(shaderOptions, "diffuseSpeed", 0, 60);
+	gui.add(shaderOptions, "moveSpeed", 0, 150, 1);
+	gui.add(shaderOptions, "sensorAngle", (Math.PI / 180), 90 * (Math.PI / 180));
+	gui.add(shaderOptions, "sensorDst", 1, 100);
+	gui.add(shaderOptions, "sensorSize", 1, 3, 1);
+	gui.add(shaderOptions, "turnSpeed", 1, 50);
+
 
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({

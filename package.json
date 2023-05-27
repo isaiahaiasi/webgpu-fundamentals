@@ -9,12 +9,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/dat.gui": "^0.7.10",
     "@types/stats": "^0.16.30",
     "@webgpu/types": "^0.1.32",
     "typescript": "^5.0.2",
     "vite": "^4.3.2"
   },
   "dependencies": {
+    "dat.gui": "^0.7.9",
     "stats.js": "^0.17.0"
   }
 }

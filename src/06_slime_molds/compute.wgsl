@@ -49,8 +49,8 @@ fn normHash(s: u32) -> f32 {
 @group(1) @binding(2) var readTex: texture_2d<f32>;
 
 // add up each trail texel within bounds of agent sensor
-fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
-	var tDims = vec2f(textureDimensions(writeTex));
+fn sense(agent: Agent, sensorAngleOffset: f32) -> f32 {
+	var tDims = textureDimensions(writeTex);
 	let sensorAngle = agent.angle + sensorAngleOffset;
 	let sensorDir = vec2f(cos(sensorAngle), sin(sensorAngle));
 	let sensorCenter = vec2f(agent.pos + sensorDir * options.sensorDst);
@@ -59,16 +59,16 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 	var iSize = f32(options.sensorSize);
 	for (var xoff = -iSize; xoff <= iSize; xoff += 1) {
 		for (var yoff = -iSize; yoff <= iSize; yoff += 1) {
-			var pos = sensorCenter + vec2(xoff, yoff);
+			var pos = vec2u(sensorCenter + vec2(xoff, yoff));
 
 			if (pos.x >= 0 && pos.x < tDims.x && pos.y >= 0 && pos.y < tDims.y) {
-				var t = textureLoad(readTex, vec2i(pos), 0);
+				var t = textureLoad(readTex, pos, 0);
 				sum += t.r + t.g + t.b;
 			}
 		}
 	}
 
-	return vec3(sum, sensorCenter);
+	return sum;
 }
 
 @compute @workgroup_size(1) fn update_agents(
@@ -94,13 +94,9 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 
 	// pick a direction (w some random variance)
 	// based on trail density at 3 possible points in front of agent.
-	let senseFwd = sense(agent, 0);
-	let senseLeft = sense(agent, options.sensorAngle);
-	let senseRight = sense(agent, -options.sensorAngle);
-
-	let weightFwd = senseFwd.x;
-	let weightLeft = senseLeft.x;
-	let weightRight = senseRight.x;
+	let weightFwd = sense(agent, 0);
+	let weightLeft = sense(agent, options.sensorAngle);
+	let weightRight = sense(agent, -options.sensorAngle);
 
 	var angle = 0.0;
 	// continue in same dir
@@ -108,7 +104,7 @@ fn sense(agent: Agent, sensorAngleOffset: f32) -> vec3f {
 		angle = 0;
 	}
 	// turn randomly
-	if (weightFwd < weightLeft && weightFwd < weightRight) {
+	else if (weightFwd < weightLeft && weightFwd < weightRight) {
 		angle = (prn - 0.5) * 2 * options.turnSpeed * info.deltaTime;
 	}
 	// turn left

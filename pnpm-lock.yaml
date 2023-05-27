@@ -1,11 +1,17 @@
 lockfileVersion: '6.0'
 
 dependencies:
+  dat.gui:
+    specifier: ^0.7.9
+    version: 0.7.9
   stats.js:
     specifier: ^0.17.0
     version: 0.17.0
 
 devDependencies:
+  '@types/dat.gui':
+    specifier: ^0.7.10
+    version: 0.7.10
   '@types/stats':
     specifier: ^0.16.30
     version: 0.16.30
@@ -219,6 +225,10 @@ packages:
     dev: true
     optional: true
 
+  /@types/dat.gui@0.7.10:
+    resolution: {integrity: sha512-sLifoNrvs4lgJkAUZcTB28dbWy0AM05Yc0BzTqHheK0tRYRVsJHoFLocB5heDbb5amaFLEXna41GOM6IG06oqA==}
+    dev: true
+
   /@types/stats@0.16.30:
     resolution: {integrity: sha512-ihuaNKhVjTQ8UNLJu7Kx96ywf0bSBday/K//HHvO9LKha07Ezxdm6HkazOKUIdayp0EmGEIPBQSL7eLxm8rX0w==}
     dev: true
@@ -226,6 +236,10 @@ packages:
   /@webgpu/types@0.1.32:
     resolution: {integrity: sha512-H6JRAvRonWxqREjxXMZgQmdgIFPe6mykLgdrHY7EQE7YihMKd/SjtSGilUmMKECVdUMg2IQB9vzaXDiTj1AxZg==}
     dev: true
+
+  /dat.gui@0.7.9:
+    resolution: {integrity: sha512-sCNc1OHobc+Erc1HqiswYgHdVNpSJUlk/Hz8vzOCsER7rl+oF/4+v8GXFUyCgtXpoCX6+bnmg07DedLvBLwYKQ==}
+    dev: false
 
   /esbuild@0.17.18:
     resolution: {integrity: sha512-z1lix43jBs6UKjcZVKOw2xx69ffE2aG0PygLL5qJ9OS/gy0Ewd1gW/PUQIOIQGXBHWNywSc0floSKoMFF8aK2w==}
