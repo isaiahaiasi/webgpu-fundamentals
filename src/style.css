@@ -60,18 +60,6 @@ h1 {
   filter: drop-shadow(0 0 2em #3178c6aa);
 }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-.canvas-container {
-  position: relative;
-}
-
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -91,6 +79,10 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+.gpu-example-container {
+  position: relative;
 }
 
 canvas.gpu-example {

@@ -4,11 +4,11 @@
 			"./node_modules/@webgpu/types",
 			"./node_modules/@types"
 		],
-		"target": "ES2022",
+		"target": "ES2020",
 		"useDefineForClassFields": true,
 		"module": "ESNext",
 		"lib": [
-			"ES2022",
+			"ES2020",
 			"DOM",
 			"DOM.Iterable"
 		],
@@ -19,6 +19,8 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"noEmit": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "preact",
 		/* Linting */
 		"strict": true,
 		"noUnusedLocals": true,
@@ -27,5 +29,10 @@
 	},
 	"include": [
 		"src"
+	],
+	"references": [
+		{
+			"path": "./tsconfig.node.json"
+		}
 	]
 }

@@ -1,7 +1,6 @@
 import Stats from 'stats.js';
 import dat from 'dat.gui';
 
-import { createGPUSampleSection } from "../utils/DOMHelpers";
 import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
 import { getGPUDevice, handleRenderLoop } from "../utils/wgpu-utils";
 import AgentGenerator from "./AgentGenerator";
@@ -13,8 +12,8 @@ const options = {
 	includeBg: false,
 	debug: false,
 	showStats: true,
-	texWidth: 2048,
-	texHeight: 1024,
+	texWidth: 512,
+	texHeight: 256,
 	isPaused: false,
 };
 
@@ -50,7 +49,7 @@ const textureOptions: GPUSamplerDescriptor = {
 	minFilter: "linear",
 };
 
-async function init(canvas: HTMLCanvasElement) {
+export async function init(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
 	if (!device) {
 		return console.error("Could not get GPU device.");
@@ -461,9 +460,3 @@ async function init(canvas: HTMLCanvasElement) {
 		}
 	});
 }
-
-export default createGPUSampleSection({
-	title: "06_slime_molds",
-	description: "Slime mold simulation, compute shader experiments.",
-	initFn: init,
-});
