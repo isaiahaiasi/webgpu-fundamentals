@@ -1,6 +1,5 @@
-import { createGPUSampleSection } from "../utils/DOMHelpers";
-import { observeResizableCanvas } from "../utils/canvasHelpers";
-import { getGPUDevice } from "../utils/wgpu-utils";
+import { observeResizableCanvas } from "../../utils/canvasHelpers";
+import { getGPUDevice } from "../../utils/wgpu-utils";
 import simpleCompute from "./shaders/simple-compute.wgsl?raw";
 
 
@@ -98,8 +97,8 @@ export async function main(canvas: HTMLCanvasElement) {
 }
 
 
-export default createGPUSampleSection({
+export default {
 	title: "02_hello_compute",
 	description: "Very simple code showing a minimal example of processing data through a compute shader.",
 	initFn: main,
-});
+};

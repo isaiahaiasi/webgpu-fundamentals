@@ -1,24 +1,33 @@
-import Stats from 'stats.js';
-import dat from 'dat.gui';
 
-import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
-import { getGPUDevice, handleRenderLoop } from "../utils/wgpu-utils";
 import AgentGenerator from "./AgentGenerator";
 
-import renderShaderCode from "./render.wgsl?raw";
-import computeShaderCode from "./compute.wgsl?raw";
+import renderShaderCode from "./shaders/render.wgsl?raw";
+import computeShaderCode from "./shaders/compute.wgsl?raw";
+import { RenderTimeInfo } from "../../utils/wgpu-utils";
+
+interface SlimeShaderOptions {
+	agentCounts: [number, number, number];
+	evaporateSpeed: number;
+	evaporateWeight: [number, number, number, number];
+	diffuseSpeed: number;
+	moveSpeed: number;
+	sensorAngle: number;
+	sensorDst: number;
+	sensorSize: number;
+	turnSpeed: number;
+}
 
 const options = {
 	includeBg: false,
 	debug: false,
 	showStats: true,
-	texWidth: 512,
-	texHeight: 256,
+	texWidth: 2048,
+	texHeight: 1024,
 	isPaused: false,
 };
 
 const shaderOptions: SlimeShaderOptions = {
-	agentCounts: [1000, 100, 1],
+	agentCounts: [30, 1000, 1],
 	evaporateSpeed: 1.4,
 	evaporateWeight: [0.4, 0.2, 0.15, 1],
 	diffuseSpeed: 50,
@@ -49,41 +58,26 @@ const textureOptions: GPUSamplerDescriptor = {
 	minFilter: "linear",
 };
 
-export async function init(canvas: HTMLCanvasElement) {
-	const device = await getGPUDevice();
-	if (!device) {
-		return console.error("Could not get GPU device.");
-	}
+async function init(device: GPUDevice, context: GPUCanvasContext) {
+	// const stats = new Stats();
+	// if (options.showStats) {
+	// 	stats.showPanel(0);
+	// 	stats.dom.style.position = "absolute";
+	// 	context.canvas.parentElement?.appendChild(stats.dom);
+	// }
 
-	const context = canvas.getContext("webgpu");
-	if (!context) {
-		return console.error("Could not get webGPU canvas context");
-	}
-
-	setCanvasDisplayOptions(canvas, {
-		imageRendering: "auto",
-		onClick: () => options.isPaused = !options.isPaused,
-	});
-
-	const stats = new Stats();
-	if (options.showStats) {
-		stats.showPanel(0);
-		stats.dom.style.position = "absolute";
-		canvas.parentElement?.appendChild(stats.dom);
-	}
-
-	const gui = new dat.GUI({ name: "slime mold::gui" });
-	canvas.parentElement?.appendChild(gui.domElement);
-	gui.domElement.style.position = "absolute";
-	gui.domElement.style.top = "0";
-	gui.domElement.style.right = "0";
-	gui.add(shaderOptions, "evaporateSpeed", 0, 15, .1);
-	gui.add(shaderOptions, "diffuseSpeed", 0, 60);
-	gui.add(shaderOptions, "moveSpeed", 0, 150, 1);
-	gui.add(shaderOptions, "sensorAngle", (Math.PI / 180), 90 * (Math.PI / 180));
-	gui.add(shaderOptions, "sensorDst", 1, 100);
-	gui.add(shaderOptions, "sensorSize", 1, 3, 1);
-	gui.add(shaderOptions, "turnSpeed", 1, 50);
+	// const gui = new dat.GUI({ name: "slime mold::gui" });
+	// canvas.parentElement?.appendChild(gui.domElement);
+	// gui.domElement.style.position = "absolute";
+	// gui.domElement.style.top = "0";
+	// gui.domElement.style.right = "0";
+	// gui.add(shaderOptions, "evaporateSpeed", 0, 15, .1);
+	// gui.add(shaderOptions, "diffuseSpeed", 0, 60);
+	// gui.add(shaderOptions, "moveSpeed", 0, 150, 1);
+	// gui.add(shaderOptions, "sensorAngle", (Math.PI / 180), 90 * (Math.PI / 180));
+	// gui.add(shaderOptions, "sensorDst", 1, 100);
+	// gui.add(shaderOptions, "sensorSize", 1, 3, 1);
+	// gui.add(shaderOptions, "turnSpeed", 1, 50);
 
 
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -388,9 +382,7 @@ export async function init(canvas: HTMLCanvasElement) {
 
 	let renderCount = 0; // for debouncing debug logs...
 
-	handleRenderLoop(async (time) => {
-		stats.update();
-
+	return async (time: RenderTimeInfo) => {
 		if (options.isPaused) {
 			return;
 		}
@@ -458,5 +450,11 @@ export async function init(canvas: HTMLCanvasElement) {
 
 			uDebugOutputBuffer.unmap();
 		}
-	});
+	};
 }
+
+export const slimeMoldInfo: GPUSampleSectionInfo = {
+	title: "Slime Molds",
+	description: "Slime mold simulation, compute shader experiments.",
+	init,
+};

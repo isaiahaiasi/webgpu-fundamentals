@@ -1,21 +1,10 @@
-import { createGPUSampleSection } from "../utils/DOMHelpers";
-import { setCanvasDisplayOptions } from "../utils/canvasHelpers";
-import { getGPUDevice } from "../utils/wgpu-utils";
-
 import shaderCode from "./shader.wgsl?raw";
 
-async function init(canvas: HTMLCanvasElement) {
-	const device = await getGPUDevice();
-	if (!device) {
-		return console.error("Could not get GPU device.");
-	}
+async function init(
+	device: GPUDevice, context: GPUCanvasContext
+): Promise<RenderCB> {
 
-	const context = canvas.getContext("webgpu");
-	if (!context) {
-		return console.error("Could not get webGPU canvas context");
-	}
-
-	setCanvasDisplayOptions(canvas);
+	// setCanvasDisplayOptions(context.canvas);
 
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({
@@ -54,7 +43,7 @@ async function init(canvas: HTMLCanvasElement) {
 		}],
 	} satisfies GPURenderPassDescriptor;
 
-	function render() {
+	return function render() {
 		renderPassDescriptor.colorAttachments[0].view =
 			context!.getCurrentTexture().createView();
 
@@ -67,12 +56,10 @@ async function init(canvas: HTMLCanvasElement) {
 		const commandBuffer = encoder.finish();
 		device!.queue.submit([commandBuffer]);
 	}
-
-	render();
 }
 
-export default createGPUSampleSection({
+export const helloTriangleInfo: GPUSampleSectionInfo = {
 	title: "01_hello_triangle",
 	description: "A minimum working WebGPU example.",
-	initFn: init,
-});
+	init,
+};

@@ -1,10 +1,13 @@
-import { init } from "./06_slime_molds";
-import { WebGPUSample } from "./components/wgpu_sample";
+import { slimeMoldInfo } from "./demos/05_slime_molds";
+import { WebGPUSample } from "./components/WebGPUSample";
+
+const { title, description, init } = slimeMoldInfo;
 
 export function App() {
 	return <WebGPUSample
-		title="Slime Molds"
-		description="Slime mold simulation, compute shader experiments."
-		initFn={init}
+		title={title}
+		description={description}
+		init={init}
+		canvasOptions={{ showStats: true }}
 	/>
 };

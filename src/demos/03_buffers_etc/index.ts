@@ -1,13 +1,9 @@
 import triShaderCode from "./shaders/tri.wgsl?raw";
-import { observeResizableCanvas } from "../utils/canvasHelpers";
-import { getGPUDevice } from "../utils/wgpu-utils";
-import { createGPUSampleSection } from "../utils/DOMHelpers";
+import { observeResizableCanvas } from "../../utils/canvasHelpers";
+import { getGPUDevice } from "../../utils/wgpu-utils";
 
 interface ObjectInfo {
 	scale: number;
-	// uniformBuffer: GPUBuffer;
-	// uniformValues: Float32Array;
-	// bindGroup: GPUBindGroup;
 }
 
 function rand(min?: number, max?: number) {
@@ -85,7 +81,7 @@ function createCircleVertices({
 	};
 }
 
-export async function main(canvas: HTMLCanvasElement) {
+async function init(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
 
 	if (!device) {
@@ -269,8 +265,8 @@ export async function main(canvas: HTMLCanvasElement) {
 }
 
 
-export default createGPUSampleSection({
+export const bufferSampleInfo = {
 	title: "03_buffers",
 	description: "A development of 'Hello Triangle' that uses other types of buffers, including vertex buffers. Also uses instancing to reduce draw calls.",
-	initFn: main,
-});
+	init,
+};

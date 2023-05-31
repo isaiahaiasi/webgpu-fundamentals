@@ -1,5 +1,9 @@
 type PosMethod = () => [number, number];
 type DirMethod = (() => number) | ((pos: [number, number]) => number);
+interface TextureDimensionOptions {
+	texWidth: number;
+	texHeight: number;
+}
 
 export default class AgentGenerator {
 	cx: number;

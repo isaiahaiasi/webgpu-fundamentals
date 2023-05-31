@@ -1,6 +1,5 @@
-import { createGPUSampleSection } from "../utils/DOMHelpers";
-import { observeResizableCanvas } from "../utils/canvasHelpers";
-import { getGPUDevice } from "../utils/wgpu-utils";
+import { observeResizableCanvas } from "../../utils/canvasHelpers";
+import { getGPUDevice } from "../../utils/wgpu-utils";
 import shaderCode from "./shader.wgsl?raw";
 
 interface TextureSettings {
@@ -17,7 +16,7 @@ const textureSettings: TextureSettings = {
 	minFilter: "linear",
 };
 
-export async function main(canvas: HTMLCanvasElement) {
+export async function init(canvas: HTMLCanvasElement) {
 	const device = await getGPUDevice();
 
 	if (!device) {
@@ -176,8 +175,8 @@ export async function main(canvas: HTMLCanvasElement) {
 
 }
 
-export default createGPUSampleSection({
+export const textureSampleInfo = {
 	title: "04_textures",
 	description: "Sample code on the basics of textures in WebGPU, including mag/minFilters and minmaps",
-	initFn: main,
-});
+	init,
+};

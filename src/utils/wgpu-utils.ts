@@ -1,4 +1,4 @@
-type Time = {
+export type RenderTimeInfo = {
 	now: DOMHighResTimeStamp;
 	deltaTime: number;
 }
@@ -33,18 +33,31 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	return device;
 }
 
-export function handleRenderLoop(renderCB: (time: Time) => void) {
-	const time: Time = {
+export function handleRenderLoop(
+	renderCB: (time: RenderTimeInfo) => void,
+	options?: { stats?: Stats }
+) {
+	const time: RenderTimeInfo = {
 		now: 0,
 		deltaTime: 0,
 	};
 
+	let active = true;
+
 	async function render(now: number) {
+		options?.stats?.update();
 		time.deltaTime = (now - time.now) * .001; // ms -> s
 		time.now = now;
 		renderCB(time);
-		requestAnimationFrame(render);
+
+		if (active) {
+			requestAnimationFrame(render);
+		}
 	}
 
 	requestAnimationFrame(render);
+
+	return () => {
+		active = false;
+	}
 }
