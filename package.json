@@ -14,7 +14,7 @@
     "@types/stats": "^0.16.30",
     "@webgpu/types": "^0.1.32",
     "typescript": "^5.0.2",
-    "vite": "^4.3.2"
+    "vite": "^4.5.2"
   },
   "dependencies": {
     "dat.gui": "^0.7.9",
