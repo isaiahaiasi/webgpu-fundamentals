@@ -23,6 +23,7 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	const device = await adapter.requestDevice();
 	device.lost.then((info) => {
 		console.error(`WebGPU device was lost: ${info.message}`);
+		console.log(info.reason);
 
 		// "reason" will be "destroyed" if we *intentionally* destroy the device
 		if (info.reason !== "destroyed") {
@@ -35,7 +36,7 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 
 export function handleRenderLoop(
 	renderCB: (time: RenderTimeInfo) => void,
-	options?: { stats?: Stats }
+	options?: {stats?: Stats}
 ) {
 	const time: RenderTimeInfo = {
 		now: 0,

@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from "preact/hooks";
-import { getGPUDevice, handleRenderLoop } from "../utils/wgpu-utils";
+import {useState, useRef, useEffect, useMemo} from "preact/hooks";
+import {getGPUDevice, handleRenderLoop} from "../utils/wgpu-utils";
 import Stats from "stats.js";
-import { StatsRenderer } from "./StatsRenderer";
+import {StatsRenderer} from "./StatsRenderer";
 
 interface GPUCanvasProps {
 	options?: Partial<CanvasDisplayOptions>;
@@ -25,9 +25,9 @@ function setCanvasDisplayOptions(
 		customPixelScale,
 		imageRendering,
 		maxSize,
-	} = { ...defaultCanvasDisplayOptions, ...options };
+	} = {...defaultCanvasDisplayOptions, ...options};
 
-	let { width, height } = options;
+	let {width, height} = options;
 
 	canvas.style.imageRendering = imageRendering;
 
@@ -43,7 +43,7 @@ function setCanvasDisplayOptions(
 	canvas.height = Math.min(height * devicePixelRatio * customPixelScale, maxSize);
 }
 
-export function GPUCanvas({ options = {}, init }: GPUCanvasProps) {
+export function GPUCanvas({options = {}, init}: GPUCanvasProps) {
 	const ref = useRef<HTMLCanvasElement | null>(null);
 	const [err, setErr] = useState<string | null>(null);
 	const stats = useMemo(() => new Stats(), []);
@@ -76,7 +76,7 @@ export function GPUCanvas({ options = {}, init }: GPUCanvasProps) {
 
 			const render = await init(device, context);
 
-			killLoop = handleRenderLoop(render, { stats });
+			killLoop = handleRenderLoop(render, {stats});
 		})(ref.current);
 
 		return () => {
@@ -88,7 +88,7 @@ export function GPUCanvas({ options = {}, init }: GPUCanvasProps) {
 	}, []);
 
 	return err
-		? <div style={{ background: "orange", color: "darkred" }}>{err}</div>
+		? <div style={{background: "orange", color: "darkred"}}>{err}</div>
 		: <div className="gpu-example-container">
 			<canvas ref={ref} className="gpu-example" />
 			{options.showStats && <StatsRenderer stats={stats} />}
