@@ -43,9 +43,9 @@ async function init(
 		}],
 	} satisfies GPURenderPassDescriptor;
 
-	return function render() {
+	return async function render() {
 		renderPassDescriptor.colorAttachments[0].view =
-			context!.getCurrentTexture().createView();
+			context.getCurrentTexture().createView();
 
 		const encoder = device!.createCommandEncoder({ label: "red tri encoder" });
 		const pass = encoder.beginRenderPass(renderPassDescriptor);
@@ -54,11 +54,11 @@ async function init(
 		pass.end();
 
 		const commandBuffer = encoder.finish();
-		device!.queue.submit([commandBuffer]);
+		device.queue.submit([commandBuffer]);
 	}
 }
 
-export const helloTriangleInfo: GPUSampleSectionInfo = {
+export const helloTriangleInfo: WebGPUDemo = {
 	title: "01_hello_triangle",
 	description: "A minimum working WebGPU example.",
 	init,

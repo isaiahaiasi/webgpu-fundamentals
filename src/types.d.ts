@@ -8,7 +8,7 @@ type CSSRelativeAssignmentValues =
 type RenderCB = (time: RenderTimeInfo) => void;
 type InitCB = (device: GPUDevice, context: GPUCanvasContext) => Promise<RenderCB>;
 
-interface GPUSampleSectionInfo {
+interface WebGPUDemo {
 	title: string;
 	description: string;
 	init: InitCB;

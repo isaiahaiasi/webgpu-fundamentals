@@ -3,7 +3,7 @@ import dat from 'dat.gui';
 import AgentGenerator from "./AgentGenerator";
 import renderShaderCode from "./shaders/render.wgsl?raw";
 import computeShaderCode from "./shaders/compute.wgsl?raw";
-import {RenderTimeInfo} from "../../utils/wgpu-utils";
+import { RenderTimeInfo } from "../../utils/wgpu-utils";
 
 interface SlimeShaderOptions {
 	agentCounts: [number, number, number];
@@ -63,7 +63,7 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 	// but we aren't worrying about that right now.
 	const canvas = context.canvas as HTMLCanvasElement;
 
-	const gui = new dat.GUI({name: "slime mold::gui"});
+	const gui = new dat.GUI({ name: "slime mold::gui" });
 	canvas.parentElement?.appendChild(gui.domElement);
 	gui.domElement.style.position = "absolute";
 	gui.domElement.style.top = "0";
@@ -119,10 +119,10 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		});
 
 		device.queue.writeTexture(
-			{texture},
+			{ texture },
 			bgTexData,
-			{bytesPerRow: options.texWidth * 4},
-			{width: options.texWidth, height: options.texHeight},
+			{ bytesPerRow: options.texWidth * 4 },
+			{ width: options.texWidth, height: options.texHeight },
 		);
 
 		return texture;
@@ -143,10 +143,10 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		});
 
 		device.queue.writeTexture(
-			{texture},
+			{ texture },
 			agentsTexData,
-			{bytesPerRow: options.texWidth * 4},
-			{width: options.texWidth, height: options.texHeight},
+			{ bytesPerRow: options.texWidth * 4 },
+			{ width: options.texWidth, height: options.texHeight },
 		);
 
 		return texture;
@@ -168,10 +168,10 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		});
 
 		device.queue.writeTexture(
-			{texture},
+			{ texture },
 			agentsTexData,
-			{bytesPerRow: options.texWidth * 4},
-			{width: options.texWidth, height: options.texHeight},
+			{ bytesPerRow: options.texWidth * 4 },
+			{ width: options.texWidth, height: options.texHeight },
 		);
 
 		return texture;
@@ -246,17 +246,17 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 			{
 				binding: 0,
 				visibility: GPUShaderStage.COMPUTE,
-				buffer: {type: "uniform"},
+				buffer: { type: "uniform" },
 			},
 			{
 				binding: 1,
 				visibility: GPUShaderStage.COMPUTE,
-				buffer: {type: "uniform"},
+				buffer: { type: "uniform" },
 			},
 			{
 				binding: 2,
 				visibility: GPUShaderStage.COMPUTE,
-				buffer: {type: "storage"},
+				buffer: { type: "storage" },
 			},
 		],
 	});
@@ -266,12 +266,12 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 			{
 				binding: 0,
 				visibility: GPUShaderStage.COMPUTE,
-				buffer: {type: "storage"},
+				buffer: { type: "storage" },
 			},
 			{
 				binding: 1,
 				visibility: GPUShaderStage.COMPUTE,
-				storageTexture: {format: "rgba8unorm"},
+				storageTexture: { format: "rgba8unorm" },
 			},
 			{
 				binding: 2,
@@ -315,7 +315,7 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		fragment: {
 			module: renderModule,
 			entryPoint: "fs",
-			targets: [{format: presentationFormat}],
+			targets: [{ format: presentationFormat }],
 		}
 	});
 
@@ -326,9 +326,9 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		label: "slime mold::bindgroup::compute::0",
 		layout: computeUpdatePipeline.getBindGroupLayout(0),
 		entries: [
-			{binding: 0, resource: {buffer: uSceneInfoBuffer}},
-			{binding: 1, resource: {buffer: uSimOptionsBuffer}},
-			{binding: 2, resource: {buffer: uDebugInputBuffer}},
+			{ binding: 0, resource: { buffer: uSceneInfoBuffer } },
+			{ binding: 1, resource: { buffer: uSimOptionsBuffer } },
+			{ binding: 2, resource: { buffer: uDebugInputBuffer } },
 		],
 	});
 
@@ -336,9 +336,9 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		label: "slime mold::bindgroup::compute::1",
 		layout: computeUpdatePipeline.getBindGroupLayout(1),
 		entries: [
-			{binding: 0, resource: {buffer: sAgentsBuffer}},
-			{binding: 1, resource: agentsTexture.createView()},
-			{binding: 2, resource: trailTexture.createView()},
+			{ binding: 0, resource: { buffer: sAgentsBuffer } },
+			{ binding: 1, resource: agentsTexture.createView() },
+			{ binding: 2, resource: trailTexture.createView() },
 		],
 	});
 
@@ -346,9 +346,9 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		label: "slime mold::bindgroup::compute::2",
 		layout: computeUpdatePipeline.getBindGroupLayout(1),
 		entries: [
-			{binding: 0, resource: {buffer: sAgentsBuffer}},
-			{binding: 1, resource: trailTexture.createView()},
-			{binding: 2, resource: agentsTexture.createView()},
+			{ binding: 0, resource: { buffer: sAgentsBuffer } },
+			{ binding: 1, resource: trailTexture.createView() },
+			{ binding: 2, resource: agentsTexture.createView() },
 		],
 	});
 
@@ -356,9 +356,9 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		label: "slime mold::bindgroup::render::0",
 		layout: renderPipeline.getBindGroupLayout(0),
 		entries: [
-			{binding: 0, resource: sampler},
-			{binding: 1, resource: bgTexture.createView()},
-			{binding: 2, resource: trailTexture.createView()},
+			{ binding: 0, resource: sampler },
+			{ binding: 1, resource: bgTexture.createView() },
+			{ binding: 2, resource: trailTexture.createView() },
 		],
 	});
 
@@ -387,7 +387,7 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 		renderCount += 1 % 60000;
 
 		uSceneInfoValues.set([time.now, time.deltaTime]);
-		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
+		device.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
 
 		// iterate all entries of shaderOptions into typedarray, then write to buffer
 		Object.entries(shaderOptions).forEach(([k, v]) => {
@@ -395,10 +395,9 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 			uSimOptionsViews[key].set(Array.isArray(v) ? v : [v]);
 		});
 
-		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
+		device.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
-		const encoder = device!.createCommandEncoder({label: "slime mold::encoder"});
-
+		const encoder = device.createCommandEncoder({ label: "slime mold::encoder" });
 		let computePass = encoder.beginComputePass();
 		computePass.setPipeline(computeUpdatePipeline);
 		computePass.setBindGroup(0, computeBindGroup0);
@@ -415,7 +414,7 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 
 
 		renderPassDescriptor.colorAttachments[0].view =
-			context!.getCurrentTexture().createView();
+			context.getCurrentTexture().createView();
 
 		const renderPass = encoder.beginRenderPass(renderPassDescriptor);
 		renderPass.setPipeline(renderPipeline);
@@ -431,13 +430,13 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 			uDebugOutputBuffer.size
 		);
 		encoder.copyTextureToTexture(
-			{texture: trailTexture},
-			{texture: agentsTexture},
+			{ texture: trailTexture },
+			{ texture: agentsTexture },
 			[options.texWidth, options.texHeight, 1],
 		);
 
 		const commandBuffer = encoder.finish();
-		device!.queue.submit([commandBuffer]);
+		device.queue.submit([commandBuffer]);
 
 		// console.log debug buffer values
 		if (options.debug && renderCount % 420 == 2) {
@@ -450,7 +449,7 @@ async function init(device: GPUDevice, context: GPUCanvasContext) {
 	};
 }
 
-export const slimeMoldInfo: GPUSampleSectionInfo = {
+export const slimeMoldInfo: WebGPUDemo = {
 	title: "Slime Molds",
 	description: "Slime mold simulation, compute shader experiments.",
 	init,
