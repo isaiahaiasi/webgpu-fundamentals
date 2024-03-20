@@ -39,10 +39,6 @@ h1 {
 
 #app {
   width: 100%;
-  max-width: 2048px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
 }
 
 .logo {
@@ -95,6 +91,31 @@ canvas.gpu-example {
 
   /* For some reason, setting aspect-ratio makes it ignore image-rendering rule */
   /* aspect-ratio: 2 / 1; */
+}
+
+main {
+  display: grid;
+  grid-template-columns: 245px auto;
+  max-width: 2048px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.sidebar {
+  display: grid;
+  gap: .5rem;
+  /* align-content: space-between; */
+  justify-items: end;
+
+  .demolist {
+    align-self: end;
+  }
+}
+
+/* dat.gui overrides */
+.dg.main {
+  /* Close button is absolutely positioned and has 20px height */
+  margin-bottom: 20px;
 }
 
 @media (prefers-color-scheme: light) {
