@@ -34,6 +34,9 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	return device;
 }
 
+/** Set up generalized render-loop.
+ * @returns A clean-up function for the render-loop.
+ */
 export function handleRenderLoop(
 	renderCB: (time: RenderTimeInfo) => void,
 	options?: { stats?: Stats }

@@ -5,7 +5,7 @@ import { StatsRenderer } from "./StatsRenderer";
 
 interface GPUCanvasProps {
 	options?: Partial<CanvasDisplayOptions>;
-	init: InitCB;
+	demo: WebGPUDemo;
 }
 
 const defaultCanvasDisplayOptions: CanvasDisplayOptions = {
@@ -14,6 +14,7 @@ const defaultCanvasDisplayOptions: CanvasDisplayOptions = {
 	imageRendering: "auto",
 	maxSize: Infinity,
 	showStats: false,
+	hideSettings: false,
 };
 
 function setCanvasDisplayOptions(
@@ -43,18 +44,19 @@ function setCanvasDisplayOptions(
 	canvas.height = Math.min(height * devicePixelRatio * customPixelScale, maxSize);
 }
 
-export function GPUCanvas({ options = {}, init }: GPUCanvasProps) {
+export function GPUCanvas({ options = {}, demo }: GPUCanvasProps) {
+	const { init } = demo;
 	const ref = useRef<HTMLCanvasElement | null>(null);
 	const [err, setErr] = useState<string | null>(null);
 	const stats = useMemo(() => new Stats(), []);
 
+	// TODO: Extract as much of this out as possible.
 	useEffect(() => {
 		if (!ref.current) {
 			return;
 		}
 
 		let device: GPUDevice | null = null;
-
 		let killLoop: (() => void) | null = null;
 
 		(async (canvas: HTMLCanvasElement) => {
@@ -92,8 +94,8 @@ export function GPUCanvas({ options = {}, init }: GPUCanvasProps) {
 
 	return err
 		? <div style={{ background: "orange", color: "darkred" }}>{err}</div>
-		: <div className="gpu-example-container">
-			<canvas ref={ref} className="gpu-example" />
+		: <div class="gpu-example-container">
+			<canvas ref={ref} class="gpu-example" />
 			{options.showStats && <StatsRenderer stats={stats} />}
 		</div>;
 }

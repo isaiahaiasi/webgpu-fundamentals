@@ -5,13 +5,15 @@ type CSSRelativeAssignmentValues =
 	"revert-layer" |
 	"unset"
 
+type WebGPUDemoFactory = () => WebGPUDemo;
 type RenderCB = (time: RenderTimeInfo) => void;
-type InitCB = (device: GPUDevice, context: GPUCanvasContext) => Promise<RenderCB>;
 
 interface WebGPUDemo {
 	title: string;
 	description: string;
-	init: InitCB;
+	init: (device: GPUDevice, context: GPUCanvasContext) => Promise<RenderCB>;
+	/** Get a dat.GUI object that can manipulate attributes of the Demo. */
+	settingsGui?: dat.GUI;
 };
 
 interface CanvasDisplayOptions {
@@ -22,4 +24,5 @@ interface CanvasDisplayOptions {
 	width?: number;
 	height?: number;
 	showStats: boolean;
+	hideSettings: boolean;
 }
