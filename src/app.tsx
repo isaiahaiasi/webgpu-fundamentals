@@ -23,7 +23,11 @@ export function App() {
 		<p>{demo.description}</p>
 		<Sidebar>
 			{settingsGui && <DatGui gui={settingsGui} />}
-			<DemoList demos={demos} currentDemo={currentDemo} setCurrentDemo={setCurrentDemo} />
+			<DemoList
+				demos={demos}
+				currentDemo={currentDemo}
+				setCurrentDemo={setCurrentDemo}
+			/>
 		</Sidebar>
 		<WebGPUSample
 			demo={demo}

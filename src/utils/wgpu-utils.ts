@@ -3,6 +3,13 @@ export type RenderTimeInfo = {
 	deltaTime: number;
 }
 
+export interface RenderLoopHandler {
+	isActive(): boolean;
+	start(): void;
+	stop(): void;
+	getFrameRequest(): number;
+}
+
 export function fail(txt: string) {
 	console.log(txt);
 	// Emit an event that could update the UI when there's a failure?
@@ -34,34 +41,58 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	return device;
 }
 
-/** Set up generalized render-loop.
- * @returns A clean-up function for the render-loop.
- */
+/** Sets up generalized render-loop. */
 export function handleRenderLoop(
 	renderCB: (time: RenderTimeInfo) => void,
-	options?: { stats?: Stats }
-) {
+	startsActive: boolean,
+	options?: { stats?: Stats },
+): RenderLoopHandler {
+	// const handlerID = Date.now();
+	let currentFrame = -1;
 	const time: RenderTimeInfo = {
 		now: 0,
 		deltaTime: 0,
 	};
 
-	let active = true;
+	let isActive = startsActive;
 
-	async function render(now: number) {
-		options?.stats?.update();
-		time.deltaTime = (now - time.now) * .001; // ms -> s
-		time.now = now;
-		renderCB(time);
-
-		if (active) {
-			requestAnimationFrame(render);
+	function render(now: number) {
+		if (isActive) {
+			options?.stats?.update();
+			time.deltaTime = (now - time.now) * .001; // ms -> s
+			time.now = now;
+			renderCB(time);
+			// console.log(isActive, handlerID);
+			console.log(isActive)
+			currentFrame = requestAnimationFrame(render);
 		}
 	}
 
-	requestAnimationFrame(render);
-
-	return () => {
-		active = false;
+	if (isActive) {
+		currentFrame = requestAnimationFrame(render);
 	}
+
+	return {
+		isActive() {
+			return isActive;
+		},
+		getFrameRequest() {
+			return currentFrame;
+		},
+		stop() {
+			console.log("pausing");
+			cancelAnimationFrame(currentFrame);
+			isActive = false;
+		},
+		start() {
+			// We don't want to re-call requestAnimationFrame if
+			// we're already active.
+			if (isActive) {
+				return;
+			}
+			console.log("resuming");
+			requestAnimationFrame(render);
+			isActive = true;
+		}
+	};
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "preact/hooks";
-import { getGPUDevice, handleRenderLoop } from "../utils/wgpu-utils";
+import { RenderLoopHandler, getGPUDevice, handleRenderLoop } from "../utils/wgpu-utils";
 import Stats from "stats.js";
 import { StatsRenderer } from "./StatsRenderer";
 
@@ -46,18 +46,19 @@ function setCanvasDisplayOptions(
 
 export function GPUCanvas({ options = {}, demo }: GPUCanvasProps) {
 	const { init } = demo;
-	const ref = useRef<HTMLCanvasElement | null>(null);
+	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const renderLoopHandlerRef = useRef<RenderLoopHandler>();
 	const [err, setErr] = useState<string | null>(null);
+	const [paused, setPaused] = useState(false);
 	const stats = useMemo(() => new Stats(), []);
 
 	// TODO: Extract as much of this out as possible.
 	useEffect(() => {
-		if (!ref.current) {
+		if (!canvasRef.current) {
 			return;
 		}
 
 		let device: GPUDevice | null = null;
-		let killLoop: (() => void) | null = null;
 
 		(async (canvas: HTMLCanvasElement) => {
 			device = await getGPUDevice();
@@ -80,22 +81,39 @@ export function GPUCanvas({ options = {}, demo }: GPUCanvasProps) {
 
 			const render = await init(device, context);
 
-			killLoop = handleRenderLoop(render, { stats });
-		})(ref.current);
+			console.log("setting render loop handler.");
+			if (renderLoopHandlerRef.current) {
+				renderLoopHandlerRef.current.stop();
+			}
+			renderLoopHandlerRef.current = handleRenderLoop(render, !paused, { stats });
+		})(canvasRef.current);
 
 		return () => {
 			device?.destroy();
-			if (killLoop) {
-				killLoop();
+			if (renderLoopHandlerRef.current) {
+				console.log("cleaning up render loop handler.")
+				renderLoopHandlerRef.current.stop();
 			}
 		};
 
 	}, [init, setErr, options]);
 
+	useEffect(() => {
+		console.log(renderLoopHandlerRef.current, paused);
+		if (!renderLoopHandlerRef.current) {
+			return;
+		}
+		if (paused) {
+			renderLoopHandlerRef.current.stop();
+		} else {
+			renderLoopHandlerRef.current.start();
+		}
+	}, [paused, renderLoopHandlerRef.current])
+
 	return err
 		? <div style={{ background: "orange", color: "darkred" }}>{err}</div>
 		: <div class="gpu-example-container">
-			<canvas ref={ref} class="gpu-example" />
+			<canvas ref={canvasRef} class="gpu-example" onClick={() => setPaused(paused => !paused)} />
 			{options.showStats && <StatsRenderer stats={stats} />}
 		</div>;
 }

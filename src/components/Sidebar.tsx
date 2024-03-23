@@ -5,6 +5,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ children }: SidebarProps) {
+
 	return (
 		<div class="sidebar">{children}</div>
 	)

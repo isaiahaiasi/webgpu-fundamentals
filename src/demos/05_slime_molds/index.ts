@@ -28,7 +28,7 @@ export const getSlimeMoldDemo: WebGPUDemoFactory = () => {
 	};
 
 	const shaderOptions: SlimeShaderOptions = {
-		agentCounts: [30, 1000, 1],
+		agentCounts: [100, 1000, 1],
 		evaporateSpeed: 1.4,
 		evaporateWeight: [0.4, 0.2, 0.15, 1],
 		diffuseSpeed: 50,
@@ -46,12 +46,6 @@ export const getSlimeMoldDemo: WebGPUDemoFactory = () => {
 	}
 
 	const agentGenerator = new AgentGenerator(options);
-
-	const agents = agentGenerator.getAgents(
-		totalAgentCount(),
-		agentGenerator.pos.filledCircle,
-		agentGenerator.dir.fromCenter,
-	);
 
 	const textureOptions: GPUSamplerDescriptor = {
 		addressModeU: "clamp-to-edge",
@@ -80,6 +74,12 @@ export const getSlimeMoldDemo: WebGPUDemoFactory = () => {
 	const settingsGui = initGui();
 
 	async function init(device: GPUDevice, context: GPUCanvasContext) {
+		const agents = agentGenerator.getAgents(
+			totalAgentCount(),
+			agentGenerator.pos.filledCircle,
+			agentGenerator.dir.toCenter,
+		);
+
 		const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 		context.configure({
 			format: presentationFormat,
@@ -382,10 +382,6 @@ export const getSlimeMoldDemo: WebGPUDemoFactory = () => {
 		let renderCount = 0; // for debouncing debug logs...
 
 		return async (time: RenderTimeInfo) => {
-			if (options.isPaused) {
-				return;
-			}
-
 			renderCount += 1 % 60000;
 
 			uSceneInfoValues.set([time.now, time.deltaTime]);
