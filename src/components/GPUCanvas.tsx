@@ -48,7 +48,7 @@ export function GPUCanvas({ options = {}, demo }: GPUCanvasProps) {
 	const { init } = demo;
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const renderLoopHandlerRef = useRef<RenderLoopHandler>();
-	const [err, setErr] = useState<string | null>(null);
+	const [err, setErr] = useState<boolean>(false);
 	const [paused, setPaused] = useState(false);
 	const stats = useMemo(() => new Stats(), []);
 
@@ -63,17 +63,16 @@ export function GPUCanvas({ options = {}, demo }: GPUCanvasProps) {
 		(async (canvas: HTMLCanvasElement) => {
 			device = await getGPUDevice();
 			if (!device) {
-				const err = "Could not get GPU device.";
-				setErr(err);
-				console.error(err);
+				console.log("Unsupported browser");
+				// const err = "";
+				setErr(true);
 				return;
 			}
 
 			const context = canvas.getContext("webgpu");
 			if (!context) {
-				const err = "Could not get webGPU canvas context"
-				setErr(err);
-				console.error(err);
+				console.log("Could not get webGPU canvas context");
+				setErr(true);
 				return;
 			}
 
@@ -111,9 +110,15 @@ export function GPUCanvas({ options = {}, demo }: GPUCanvasProps) {
 	}, [paused, renderLoopHandlerRef.current])
 
 	return err
-		? <div style={{ background: "orange", color: "darkred" }}>{err}</div>
+		? <GPUErrorMessage />
 		: <div class="gpu-example-container">
 			<canvas ref={canvasRef} class="gpu-example" onClick={() => setPaused(paused => !paused)} />
 			{options.showStats && <StatsRenderer stats={stats} />}
 		</div>;
+}
+
+function GPUErrorMessage() {
+	return <div style={{ background: "orange", color: "darkred" }}>
+		This browser does not support WebGPU. A list of supported browsers can be found here: <a href="https://caniuse.com/webgpu">https://caniuse.com/webgpu</a>
+	</div>
 }
