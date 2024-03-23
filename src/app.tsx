@@ -7,10 +7,10 @@ import { Sidebar } from "./components/Sidebar";
 import { DatGui } from "./components/DatGui";
 
 const demos = [
+	getSlimeMoldDemo(),
 	helloTriangleInfo,
 	// bufferSampleInfo,
 	// textureSampleInfo,
-	getSlimeMoldDemo(),
 ];
 
 export function App() {
