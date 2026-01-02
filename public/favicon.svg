@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" xmlns:bx="https://boxy-svg.com">
+  <defs>
+    <linearGradient gradientUnits="userSpaceOnUse" x1="249.999" y1="8.547" x2="249.999" y2="495.726" id="gradient-0" gradientTransform="matrix(0.919437, 0, 0, 0.919437, 16.354668, 4.681004)">
+      <stop offset="0" style="stop-color: rgb(255, 75, 230);"/>
+      <stop offset="1" style="stop-color: rgb(148, 0, 53);"/>
+    </linearGradient>
+    <linearGradient gradientUnits="userSpaceOnUse" x1="249.999" y1="8.547" x2="249.999" y2="495.726" id="gradient-2" gradientTransform="matrix(0.919437, 0, 0, 0.919437, 16.354668, 4.681004)">
+      <stop offset="0" style="stop-color: rgb(189, 15, 136);"/>
+      <stop offset="1" style="stop-color: rgb(29.529% 2.8464% 0%)"/>
+    </linearGradient>
+  </defs>
+  <path d="M 212.842 79.281 Q 246.213 12.539 279.584 79.281 L 436.807 393.727 Q 470.178 460.469 403.436 460.469 L 88.99 460.469 Q 22.248 460.469 55.619 393.727 Z" bx:shape="triangle 22.248 12.539 447.93 447.93 0.5 0.149 1@9d794e45" style="stroke-width: 12px; stroke-linecap: round; stroke-linejoin: round; fill: url(&quot;#gradient-0&quot;); fill-rule: nonzero; stroke: url(&quot;#gradient-2&quot;);"/>
+</svg>

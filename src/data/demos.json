@@ -1,0 +1,13 @@
+[
+    {
+        "slug": "triangle",
+        "title": "Triangle",
+        "order": 0,
+        "description": "\"Hello World\" of WebGPU"
+    },
+    {
+        "slug": "slime-mold",
+        "title": "Slime Mold",
+        "description": "Slime Mold simulation."
+    }
+]

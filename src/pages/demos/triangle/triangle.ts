@@ -1,8 +1,9 @@
+import { getGPUDevice } from "../../../utils/wgpu_utils";
 import shaderCode from "./shader.wgsl?raw";
 
 async function init(
 	device: GPUDevice, context: GPUCanvasContext
-): Promise<RenderCB> {
+) {
 
 	// setCanvasDisplayOptions(context.canvas);
 
@@ -58,8 +59,23 @@ async function init(
 	}
 }
 
-export const helloTriangleInfo: WebGPUDemo = {
-	title: "01_hello_triangle",
-	description: "A minimum working WebGPU example.",
-	init,
-};
+export async function main(canvasId: string) {
+	const canvas = document.getElementById(canvasId);
+	if (!canvas) {
+		console.error(`Could not get canvas with id ${canvasId}`);
+	}
+
+	const device = await getGPUDevice();
+	if (!device) {
+		return console.error("Could not get GPU device.");
+	}
+
+	const context = (canvas as HTMLCanvasElement).getContext("webgpu");
+	if (!context) {
+		return console.error("Could not get webGPU canvas context");
+	}
+
+	const render = await init(device, context);
+	console.log("rendering triangle");
+	render();
+}

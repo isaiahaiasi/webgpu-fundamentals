@@ -1,0 +1,76 @@
+---
+import demosData from '../data/demos.json';
+
+const demos = demosData
+  .map(demo => ({
+    url: `/demos/${demo.slug}`,
+    name: demo.slug,
+    title: demo.title
+  }))
+  .sort((a, b) => 
+    (demosData.find(d => d.slug === a.name)?.order ?? 999) - 
+    (demosData.find(d => d.slug === b.name)?.order ?? 999)
+  );
+
+const currentPath = Astro.url.pathname;
+---
+
+<nav class="demo-nav">
+	<a href="/" class="home-link">Demos</a>
+
+	<div class="demo-links">
+		{demos.map(demo => (
+			<a
+				href={demo.url}
+				class:list={['demo-link', { active: currentPath.includes(demo.name) }]}
+			>
+				{demo.title}
+			</a>
+		))}
+	</div>
+</nav>
+
+<style>
+	.demo-nav {
+		width: 8rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2rem;
+		padding: .5rem .5rem;
+		background: rgba(0, 0, 0, 0.8);
+		backdrop-filter: blur(10px);
+	}
+
+	.home-link {
+		color: #667eea;
+		text-decoration: none;
+		font-weight: 600;
+	}
+
+	.demo-links {
+		display: flex;
+		flex-direction: column;
+		gap: .5rem;
+		flex-wrap: wrap;
+	}
+
+	.demo-link {
+		color: rgba(255, 255, 255, 0.7);
+		text-decoration: none;
+		padding: 0.5rem 1rem;
+		border-radius: 4px;
+		transition: all 0.2s;
+		font-size: 0.9rem;
+	}
+
+	.demo-link:hover {
+		color: white;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.demo-link.active {
+		color: white;
+		background: rgba(102, 126, 234, 0.5);
+	}
+</style>

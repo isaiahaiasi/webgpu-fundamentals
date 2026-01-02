@@ -67,4 +67,3 @@ export default class AgentGenerator {
 			.flat();
 	}
 }
-

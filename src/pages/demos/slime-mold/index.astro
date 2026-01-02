@@ -1,0 +1,15 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+---
+
+<Layout title="Slime Mold Simulation (compute shader)">
+	<main>
+		<h1>Slime Mold Simulation</h1>
+			<canvas id="gpu-canvas"></canvas>
+	</main>
+</Layout>
+
+<script>
+	import {main} from "./SlimeMold";
+	main("gpu-canvas");
+</script>

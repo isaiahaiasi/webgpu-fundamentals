@@ -1,0 +1,15 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+---
+
+<Layout title="Basic Triangle Shader">
+	<main>
+		<h1>Basic Triangle Shader</h1>
+		<canvas id="gpu-canvas"></canvas>
+	</main>
+</Layout>
+
+<script>
+	import {main} from "./triangle";
+	main("gpu-canvas");
+</script>
