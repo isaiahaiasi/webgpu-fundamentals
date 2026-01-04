@@ -9,5 +9,10 @@
         "slug": "slime-mold",
         "title": "Slime Mold",
         "description": "Slime Mold simulation."
+    },
+    {
+        "slug": "game-of-life",
+        "title": "Game of Life",
+        "description": "Conway's Game of Life cellular automaton simulation."
     }
 ]
