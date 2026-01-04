@@ -4,9 +4,6 @@ import shaderCode from "./shader.wgsl?raw";
 async function init(
 	device: GPUDevice, context: GPUCanvasContext
 ) {
-
-	// setCanvasDisplayOptions(context.canvas);
-
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({
 		format: presentationFormat,

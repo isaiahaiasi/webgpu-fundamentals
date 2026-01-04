@@ -33,6 +33,29 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	return device;
 }
 
+export async function initWebGPU(
+	canvas: HTMLCanvasElement
+): Promise<[GPUDevice, GPUCanvasContext] | null> {
+	const context = canvas.getContext("webgpu");
+	if (!context) {
+		fail("Could not get WebGPU canvas context");
+		return null;
+	}
+
+	const device = await getGPUDevice();
+	if (!device) {
+		return null;
+	}
+
+	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+	context.configure({
+		format: presentationFormat,
+		device
+	});
+
+	return [device, context];
+}
+
 export function handleRenderLoop(renderCB: (time: Time) => void) {
 	const time: Time = {
 		now: 0,

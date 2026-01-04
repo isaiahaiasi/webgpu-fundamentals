@@ -28,7 +28,6 @@ export function setCanvasDisplayOptions(
 	canvas: HTMLCanvasElement,
 	options: Partial<CanvasDisplayOptions> = {}) {
 	let {
-		render,
 		useDevicePixelRatio,
 		customPixelScale,
 		imageRendering,
@@ -53,10 +52,6 @@ export function setCanvasDisplayOptions(
 	const devicePixelRatio = (useDevicePixelRatio && window.devicePixelRatio) || 1;
 	canvas.width = Math.min(width * devicePixelRatio * customPixelScale, maxSize);
 	canvas.height = Math.min(height * devicePixelRatio * customPixelScale, maxSize);
-
-	if (render) {
-		render();
-	}
 }
 
 
