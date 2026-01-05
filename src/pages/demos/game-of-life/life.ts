@@ -9,6 +9,7 @@ const gameOptions = {
 	minFrameTime: .1, // minimum frame time in seconds
 	aliveCol: [.35, .85, 1], // RGB for alive cells
 	deadCol: [0.15, 0.0, 0.25], // RGB for dead cells
+	isPaused: false,
 };
 
 async function initRender(
@@ -17,7 +18,7 @@ async function initRender(
 	const boardAspect = gameOptions.boardWidth / gameOptions.boardHeight;
 	const canvasAspect = context.canvas.width / context.canvas.height;
 	const scaleX = canvasAspect > boardAspect ? (boardAspect / canvasAspect) : 1;
-	const scaleY = canvasAspect > boardAspect ? 1 : (canvasAspect / boardAspect);;
+	const scaleY = canvasAspect > boardAspect ? 1 : (canvasAspect / boardAspect);
 
 	const shaderModule = device.createShaderModule({
 		label: 'life::module::shader',
@@ -31,8 +32,6 @@ const DeadCol : vec3f = vec3f(${gameOptions.deadCol});
 const WorkGroupSize : u32 = ${gameOptions.workGroupSize}u;
 ` + shaderCode,
 	});
-
-	const bufferSize = gameOptions.boardWidth * gameOptions.boardHeight * 4;
 
 	// Create two "ping pong" buffers
 	const cellTextures = ['ping', 'pong'].map(p => device.createTexture({
@@ -49,7 +48,7 @@ const WorkGroupSize : u32 = ${gameOptions.workGroupSize}u;
 		);
 
 		for (let i = 0; i < initState.length; i++) {
-			initState[i] = Math.random() > 0.5 ? 0 : 1;
+			initState[i] = Math.random() > 0.8 ? 1 : 0;
 		}
 
 		// Copy initial state to first ping pong buffer
@@ -130,8 +129,12 @@ const WorkGroupSize : u32 = ${gameOptions.workGroupSize}u;
 	let timeSinceLastRender = gameOptions.minFrameTime;
 
 	handleRenderLoop(({ deltaTime }) => {
+		// Only render at fixed minimum frame time & not paused.
 		{
-			// Only render at fixed minimum frame time.
+			if (gameOptions.isPaused) {
+				return;
+			}
+
 			timeSinceLastRender += deltaTime;
 			if (timeSinceLastRender < gameOptions.minFrameTime) {
 				return;
@@ -182,7 +185,15 @@ export async function main(canvasId: string) {
 		return;
 	}
 
-	setCanvasDisplayOptions(canvas, { imageRendering: "auto" });
+	setCanvasDisplayOptions(
+		canvas,
+		{
+			imageRendering: "auto",
+			onClick: () => {
+				gameOptions.isPaused = !gameOptions.isPaused;
+				canvas.classList.toggle('paused');
+			},
+		});
 
 	const [device, context] = initResult;
 
