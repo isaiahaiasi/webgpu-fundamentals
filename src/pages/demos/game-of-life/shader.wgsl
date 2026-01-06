@@ -3,8 +3,19 @@ struct VSOut {
     @location(0) uv: vec2f
 };
 
-@group(0) @binding(0) var srcTexture: texture_storage_2d<r32uint, read>;
-@group(0) @binding(1) var dstTexture: texture_storage_2d<r32uint, read_write>;
+// Render-stage resources
+@group(0) @binding(0) var renderTexture: texture_storage_2d<r32uint, read>;
+
+struct Colors {
+    aliveCol: vec4f, // w component unused, but padding requires vec4
+    deadCol: vec4f,
+}
+
+@group(0) @binding(1) var<uniform> colors: Colors;
+
+@group(1) @binding(0) var computeTextureSrc: texture_storage_2d<r32uint, read>;
+@group(1) @binding(1) var computeTextureDst: texture_storage_2d<r32uint, read_write>;
+
 
 @vertex
 fn vs(@builtin(vertex_index) vidx : u32) -> VSOut {
@@ -30,11 +41,11 @@ fn vs(@builtin(vertex_index) vidx : u32) -> VSOut {
 fn fs(@location(0) uv : vec2f) -> @location(0) vec4f {
     let x = u32(floor(uv.x * f32(BoardWidth)));
     let y = u32(floor(uv.y * f32(BoardHeight)));
-    let cellState = textureLoad(srcTexture, vec2u(x, y)).x;
+    let cellState = textureLoad(renderTexture, vec2u(x, y)).x;
     if (cellState == 1u) {
-        return vec4f(AliveCol, 1.0);
+        return vec4f(colors.aliveCol.xyz, 1.0);
     }
-    return vec4f(DeadCol, 1.0);
+    return vec4f(colors.deadCol.xyz, 1.0);
 }
 
 
@@ -54,7 +65,7 @@ fn fs(@location(0) uv : vec2f) -> @location(0) vec4f {
             let neighborY = (i32(id.y) + y + i32(BoardHeight)) % i32(BoardHeight);
             let neighborX = (i32(id.x) + x + i32(BoardWidth)) % i32(BoardWidth);
             let neighborIdx = vec2<u32>(u32(neighborX), u32(neighborY));
-            neighborCount += textureLoad(srcTexture, neighborIdx).x;
+            neighborCount += textureLoad(computeTextureSrc, neighborIdx).x;
         }
     }
 
@@ -62,7 +73,7 @@ fn fs(@location(0) uv : vec2f) -> @location(0) vec4f {
     if (neighborCount == 3u) {
         newState = 1u;
     } else if (neighborCount == 2u) {
-        newState = textureLoad(srcTexture, idx).x;
+        newState = textureLoad(computeTextureSrc, idx).x;
     }
-    textureStore(dstTexture, idx, vec4<u32>(newState, 0u, 0u, 0u));
+    textureStore(computeTextureDst, idx, vec4<u32>(newState, 0u, 0u, 0u));
 }

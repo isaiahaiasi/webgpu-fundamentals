@@ -56,7 +56,10 @@ export async function initWebGPU(
 	return [device, context];
 }
 
-export function handleRenderLoop(renderCB: (time: Time) => void) {
+/**
+ * @param renderCB The render function, which returns a boolean indicating whether to break the loop or not.
+ */
+export function handleRenderLoop(renderCB: (time: Time) => Promise<boolean | void>) {
 	const time: Time = {
 		now: 0,
 		deltaTime: 0,
@@ -65,8 +68,10 @@ export function handleRenderLoop(renderCB: (time: Time) => void) {
 	async function render(now: number) {
 		time.deltaTime = (now - time.now) * .001; // ms -> s
 		time.now = now;
-		renderCB(time);
-		requestAnimationFrame(render);
+		const break_loop = await renderCB({...time});
+		if (!break_loop) {
+			requestAnimationFrame(render);
+		}
 	}
 
 	requestAnimationFrame(render);
