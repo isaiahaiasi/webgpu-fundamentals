@@ -1,0 +1,15 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+---
+
+<Layout title="Conway's Game of Life">
+	<main>
+		<h1>Conway's Game of Life</h1>
+			<canvas id="gpu-canvas"></canvas>
+	</main>
+</Layout>
+
+<script>
+	import {main} from "./life";
+	main("gpu-canvas");
+</script>

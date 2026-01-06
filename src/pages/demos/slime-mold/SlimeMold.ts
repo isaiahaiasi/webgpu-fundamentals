@@ -90,6 +90,12 @@ async function init(canvas: HTMLCanvasElement) {
 		return console.error("Could not get webGPU canvas context");
 	}
 
+	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+	context.configure({
+		format: presentationFormat,
+		device
+	});
+
 	setCanvasDisplayOptions(canvas, {
 		imageRendering: "auto",
 		onClick: () => options.isPaused = !options.isPaused,
@@ -103,12 +109,6 @@ async function init(canvas: HTMLCanvasElement) {
 	}
 
 	await initGui(canvas.parentElement);
-
-	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
-	context.configure({
-		format: presentationFormat,
-		device
-	});
 
 	const computeModule = device.createShaderModule({
 		label: "slime mold::module::compute",
@@ -411,10 +411,10 @@ async function init(canvas: HTMLCanvasElement) {
 			return;
 		}
 
-		renderCount += 1 % 60000;
+		renderCount = (renderCount + 1) % 60000;
 
 		uSceneInfoValues.set([time.now, time.deltaTime]);
-		device!.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
+		device.queue.writeBuffer(uSceneInfoBuffer, 0, uSceneInfoValues);
 
 		// iterate all entries of shaderOptions into typedarray, then write to buffer
 		Object.entries(shaderOptions).forEach(([k, v]) => {
@@ -422,9 +422,9 @@ async function init(canvas: HTMLCanvasElement) {
 			uSimOptionsViews[key].set(Array.isArray(v) ? v : [v]);
 		});
 
-		device!.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
+		device.queue.writeBuffer(uSimOptionsBuffer, 0, uSimOptionsValues);
 
-		const encoder = device!.createCommandEncoder({ label: "slime mold::encoder" });
+		const encoder = device.createCommandEncoder({ label: "slime mold::encoder" });
 
 		let computePass = encoder.beginComputePass();
 		computePass.setPipeline(computeUpdatePipeline);
@@ -442,7 +442,7 @@ async function init(canvas: HTMLCanvasElement) {
 
 
 		renderPassDescriptor.colorAttachments[0].view =
-			context!.getCurrentTexture().createView();
+			context.getCurrentTexture().createView();
 
 		const renderPass = encoder.beginRenderPass(renderPassDescriptor);
 		renderPass.setPipeline(renderPipeline);
@@ -464,7 +464,7 @@ async function init(canvas: HTMLCanvasElement) {
 		);
 
 		const commandBuffer = encoder.finish();
-		device!.queue.submit([commandBuffer]);
+		device.queue.submit([commandBuffer]);
 
 		// console.log debug buffer values
 		if (options.debug && renderCount % 420 == 2) {

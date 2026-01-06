@@ -33,7 +33,33 @@ export async function getGPUDevice(): Promise<GPUDevice | null> {
 	return device;
 }
 
-export function handleRenderLoop(renderCB: (time: Time) => void) {
+export async function initWebGPU(
+	canvas: HTMLCanvasElement
+): Promise<[GPUDevice, GPUCanvasContext] | null> {
+	const context = canvas.getContext("webgpu");
+	if (!context) {
+		fail("Could not get WebGPU canvas context");
+		return null;
+	}
+
+	const device = await getGPUDevice();
+	if (!device) {
+		return null;
+	}
+
+	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+	context.configure({
+		format: presentationFormat,
+		device
+	});
+
+	return [device, context];
+}
+
+/**
+ * @param renderCB The render function, which returns a boolean indicating whether to break the loop or not.
+ */
+export function handleRenderLoop(renderCB: (time: Time) => Promise<boolean | void>) {
 	const time: Time = {
 		now: 0,
 		deltaTime: 0,
@@ -42,8 +68,10 @@ export function handleRenderLoop(renderCB: (time: Time) => void) {
 	async function render(now: number) {
 		time.deltaTime = (now - time.now) * .001; // ms -> s
 		time.now = now;
-		renderCB(time);
-		requestAnimationFrame(render);
+		const break_loop = await renderCB({...time});
+		if (!break_loop) {
+			requestAnimationFrame(render);
+		}
 	}
 
 	requestAnimationFrame(render);
